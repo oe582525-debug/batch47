@@ -1128,8 +1128,10 @@
       // ------------------------------------------------------------------------
       // 1. SUPABASE CLIENT INITIALIZATION
       // ------------------------------------------------------------------------
-      const SUPABASE_URL = 'https://rlkygmydqazegeaqnzlv.supabase.co';
-      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsa3lnbXlkcWF6ZWdlYXFuemx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIwNDQ5ODgsImV4cCI6MjA1NzYyMDk4OH0.l83aW1r4OqP97aL_yR6Z7r6X_r_u0-tX44hXqO-yD_U';
+      // Root project URL sanitized to ensure clean API endpoints
+      const RAW_SUPABASE_URL = 'https://rlkygmydqazegeaqnzlv.supabase.co';
+      const SUPABASE_URL = RAW_SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsa3lnbXlkcWF6ZWdlYXFuemx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDkwMzEsImV4cCI6MjEwNTMyNTAzMX0.BIseGNs3rT-uuoS5cFR2wl34JqVpW821ZTFfgP0f_2I';
 
       let supabaseClient = null;
       try {
