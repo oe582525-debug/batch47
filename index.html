@@ -7,7 +7,7 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-client@2"></script>
-  <!-- html2pdf Library for PDF Download -->
+  <!-- html2pdf Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -27,7 +27,6 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
-      /* Prevents double-tap zoom on mobile devices */
       touch-action: manipulation;
     }
 
@@ -72,6 +71,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 22px;
+      position: relative; /* Fix for dropdown menu */
     }
 
     .brand-section {
@@ -92,11 +92,6 @@
       font-size: 16px;
       color: #ffffff;
       box-shadow: 0 0 12px rgba(217, 35, 46, 0.3);
-    }
-
-    .title-group {
-      display: flex;
-      flex-direction: column;
     }
 
     .brand-title {
@@ -130,10 +125,6 @@
       transition: background 0.2s;
     }
 
-    .menu-btn:hover {
-      background: rgba(217, 35, 46, 0.1);
-    }
-
     /* Post Input Card */
     .input-card {
       background: var(--card-bg);
@@ -158,7 +149,7 @@
       background: transparent;
       border: none;
       color: #ffffff;
-      font-size: 14px;
+      font-size: 16px; /* Prevents auto-zoom on mobile safari */
       resize: none;
       outline: none;
       font-family: inherit;
@@ -197,21 +188,6 @@
       cursor: pointer;
       box-shadow: 0 0 15px rgba(217, 35, 46, 0.4);
       transition: all 0.2s;
-      user-select: none;
-    }
-
-    .post-btn:hover {
-      background: var(--accent-red-hover);
-    }
-
-    .post-btn:active {
-      transform: scale(0.97);
-    }
-
-    .post-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
     }
 
     /* Timeline Bar */
@@ -267,11 +243,6 @@
       border-radius: 16px;
       padding: 16px;
       position: relative;
-      transition: border-color 0.2s;
-    }
-
-    .post-card:hover {
-      border-color: rgba(217, 35, 46, 0.2);
     }
 
     .post-header {
@@ -308,8 +279,6 @@
       font-size: 14px;
       cursor: pointer;
       padding: 2px 4px;
-      border-radius: 4px;
-      transition: color 0.2s;
     }
 
     .delete-btn:hover {
@@ -319,16 +288,15 @@
     /* Navigation Dropdown Menu */
     .dropdown-menu {
       position: absolute;
-      top: 60px;
-      right: 16px;
+      top: 45px;
+      right: 0;
       background: #101017;
       border: 1px solid #282836;
       border-radius: 14px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-      z-index: 100;
+      z-index: 999;
       display: none;
       flex-direction: column;
-      overflow: hidden;
       min-width: 200px;
     }
 
@@ -345,7 +313,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      transition: background 0.2s;
     }
 
     .dropdown-item:hover {
@@ -353,7 +320,6 @@
       color: #fff;
     }
 
-    /* Template Container for PDF Export */
     #pdf-container {
       display: none;
       background: #ffffff;
@@ -361,28 +327,11 @@
       padding: 20px;
       font-family: Arial, sans-serif;
     }
-
-    #pdf-container h2 {
-      margin-bottom: 5px;
-      color: #b91c1c;
-    }
-
-    .pdf-post-item {
-      border-bottom: 1px solid #e5e7eb;
-      padding: 10px 0;
-    }
-
-    .pdf-meta {
-      font-size: 11px;
-      color: #6b7280;
-      margin-bottom: 4px;
-    }
   </style>
 </head>
 <body>
 
   <div class="app-container">
-    <!-- App Header -->
     <header class="header">
       <div class="brand-section">
         <div class="logo-circle">47</div>
@@ -392,14 +341,13 @@
         </div>
       </div>
       <button class="menu-btn" id="menu-toggle-btn" title="Menu">⋮</button>
+      
+      <!-- Top Dropdown Menu inside header -->
+      <div class="dropdown-menu" id="dropdown-menu">
+        <button class="dropdown-item" id="export-pdf-btn">📄 Export Feed History (PDF)</button>
+      </div>
     </header>
 
-    <!-- Top Dropdown Menu -->
-    <div class="dropdown-menu" id="dropdown-menu">
-      <button class="dropdown-item" id="export-pdf-btn">📄 Export Feed History (PDF)</button>
-    </div>
-
-    <!-- Post Creation Box -->
     <section class="input-card">
       <div class="textarea-wrapper">
         <textarea 
@@ -415,7 +363,6 @@
       </div>
     </section>
 
-    <!-- Realtime Timeline Label -->
     <div class="timeline-bar">
       <div class="timeline-title">
         <span class="live-dot"></span> LIVE TIMELINE
@@ -423,7 +370,6 @@
       <div class="expiry-text">Auto-expires after 30 days</div>
     </div>
 
-    <!-- Live Posts Container -->
     <main class="posts-list" id="posts-container">
       <div style="text-align: center; color: #636674; font-size: 13px; padding: 20px;">
         Connecting to live feed...
@@ -431,19 +377,17 @@
     </main>
   </div>
 
-  <!-- Hidden Container for generating PDF -->
   <div id="pdf-container"></div>
 
   <script>
     // ==========================================
-    // 1. SUPABASE CLIENT & AUTO REGISTRATION
+    // 1. SUPABASE CLIENT & AUTO REGISTRATION (FIXED URL)
     // ==========================================
-    const SUPABASE_URL = "https://oeipqyttvkxqrtzesowb.supabase.co/rest/v1/";
+    const SUPABASE_URL = "https://oeipqyttvkxqrtzesowb.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9laXBxeXR0dmt4cXJ0emVzb3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDkzNjAsImV4cCI6MjEwNTMyNTM2MH0.nkZXFz89-9MhDqjnjOUS5QXp48m5FG91JqpdfxPifoE";
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Auto-Register user by creating a unique ID if not present
     let currentUserId = localStorage.getItem("b47_anon_id");
     if (!currentUserId) {
       currentUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
@@ -451,7 +395,7 @@
     }
 
     // ==========================================
-    // 2. WORD COUNT MANAGEMENT (Max 47 Words)
+    // 2. WORD COUNT MANAGEMENT
     // ==========================================
     const postTextInput = document.getElementById("post-text");
     const wordCountDisplay = document.getElementById("word-count-display");
@@ -507,7 +451,6 @@
 
         if (error) throw error;
 
-        // Reset input on success
         postTextInput.value = "";
         wordCountDisplay.innerText = "0 / 47 words";
 
@@ -520,7 +463,7 @@
     });
 
     // ==========================================
-    // 4. FETCH POSTS & REALTIME WEBSOCKET LISTEN
+    // 4. FETCH POSTS & REALTIME LISTEN
     // ==========================================
     const postsContainer = document.getElementById("posts-container");
 
@@ -557,7 +500,6 @@
         }
 
         postsContainer.innerHTML = posts.map(post => {
-          // Verify if post belongs to current user
           const isOwner = post.user_id === currentUserId;
 
           return `
@@ -579,18 +521,17 @@
       }
     }
 
-    // Supabase Realtime WebSocket Listener
-    db.channel('public:posts')
+    // Realtime Supabase Setup (v2 Subscription)
+    db.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
         fetchPosts();
       })
       .subscribe();
 
-    // Initial Load
     fetchPosts();
 
     // ==========================================
-    // 5. DELETE OWN POST ACTION
+    // 5. DELETE OWN POST
     // ==========================================
     window.deletePost = async (postId) => {
       if (confirm("Are you sure you want to delete your post?")) {
@@ -616,7 +557,6 @@
 
     document.addEventListener("click", () => dropdownMenu.classList.remove("show"));
 
-    // PDF Backup Export Action
     document.getElementById("export-pdf-btn").addEventListener("click", async () => {
       dropdownMenu.classList.remove("show");
 
@@ -636,8 +576,8 @@
         <p style="font-size: 11px; color: #666; margin-bottom: 12px;">Exported Feed History (30 Days)</p>
         <div>
           ${posts.map(p => `
-            <div class="pdf-post-item">
-              <div class="pdf-meta"><strong>Anonymous</strong> - ${formatDate(p.created_at)}</div>
+            <div style="border-bottom: 1px solid #eee; padding: 8px 0;">
+              <div style="font-size: 11px; color: #666;"><strong>Anonymous</strong> - ${formatDate(p.created_at)}</div>
               <div style="font-size: 13px;">${escapeHTML(p.content)}</div>
             </div>
           `).join('')}
