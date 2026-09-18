@@ -68,11 +68,7 @@
       --text-muted: #64748B;
       --text-dim: #475569;
 
-      /* Status & Vote Colors */
-      --color-upvote: #10B981;
-      --color-upvote-bg: rgba(16, 185, 129, 0.12);
-      --color-downvote: #F43F5E;
-      --color-downvote-bg: rgba(244, 63, 94, 0.12);
+      /* Status Colors */
       --color-warning: #F59E0B;
 
       /* Radii */
@@ -637,81 +633,6 @@
       white-space: pre-wrap;
     }
 
-    /* Bubble Action Footer: Upvotes / Downvotes */
-    .bubble-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.65rem;
-      padding-top: 0.35rem;
-    }
-
-    .vote-actions-group {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .vote-pill {
-      background: var(--bg-input);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-pill);
-      padding: 0.32rem 0.75rem;
-      color: var(--text-secondary);
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      transition: all 0.16s ease;
-      outline: none;
-      user-select: none;
-    }
-
-    .vote-pill:hover {
-      border-color: var(--border-crisp);
-      background: #192233;
-      color: var(--text-white);
-    }
-
-    .vote-pill:active {
-      transform: scale(0.95);
-    }
-
-    .vote-pill svg {
-      width: 14px;
-      height: 14px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2.4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    /* Active Upvote State */
-    .vote-pill.upvoted {
-      background: var(--color-upvote-bg);
-      border-color: rgba(16, 185, 129, 0.45);
-      color: var(--color-upvote);
-    }
-
-    .vote-pill.upvoted svg {
-      stroke: var(--color-upvote);
-    }
-
-    /* Active Downvote State */
-    .vote-pill.downvoted {
-      background: var(--color-downvote-bg);
-      border-color: rgba(244, 63, 94, 0.45);
-      color: var(--color-downvote);
-    }
-
-    .vote-pill.downvoted svg {
-      stroke: var(--color-downvote);
-    }
-
     /* Empty Feed Card */
     .empty-state-card {
       background: var(--bg-panel);
@@ -931,9 +852,15 @@
       opacity: 1;
     }
 
-    /* PDF Staging Container */
+    /* PDF Staging Container: positioned off-screen with explicit A4 width so html2canvas can measure and render multi-page documents seamlessly */
     #pdfStagingArea {
-      display: none;
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: 760px;
+      background: #ffffff;
+      z-index: -9999;
+      pointer-events: none;
     }
 
     /* ==========================================================================
@@ -1099,7 +1026,7 @@
           <span>Anonymous Feed</span>
         </div>
         <div class="timeline-expiry-badge">
-          30-day retention
+          Dynamic capacity
         </div>
       </div>
 
@@ -1126,12 +1053,13 @@
       'use strict';
 
       // ------------------------------------------------------------------------
-      // 1. SUPABASE CLIENT INITIALIZATION
+      // 1. SUPABASE CLIENT INITIALIZATION & CONFIGURATION
       // ------------------------------------------------------------------------
       // Root project URL sanitized to ensure clean API endpoints
-      const RAW_SUPABASE_URL = 'https://rlkygmydqazegeaqnzlv.supabase.co';
+      const RAW_SUPABASE_URL = 'https://rlkygmydqazegeaqnzlv.supabase.co/rest/v1/';
       const SUPABASE_URL = RAW_SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsa3lnbXlkcWF6ZWdlYXFuemx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDkwMzEsImV4cCI6MjEwNTMyNTAzMX0.BIseGNs3rT-uuoS5cFR2wl34JqVpW821ZTFfgP0f_2I';
+      const DATABASE_TABLE = 'anonymous_posts';
 
       let supabaseClient = null;
       try {
@@ -1142,35 +1070,17 @@
         console.warn('Supabase client failed to initialize:', err);
       }
 
-      // Target Table configuration (primary 'anonymous_posts' or fallback 'posts')
-      let activeTableName = 'anonymous_posts';
-
       // ------------------------------------------------------------------------
-      // 2. USER ANONYMOUS IDENTITY & VOTING CACHE
+      // 2. USER ANONYMOUS IDENTITY
       // ------------------------------------------------------------------------
       const STORAGE_KEY_USER = 'b47_user_anon_token_v3';
       const STORAGE_KEY_POSTS = 'b47_cached_feed_v3';
-      const STORAGE_KEY_VOTES = 'b47_user_votes_v3'; // { [postId]: 'up' | 'down' }
 
       let myAnonId = localStorage.getItem(STORAGE_KEY_USER);
       if (!myAnonId) {
         const randHex = Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
         myAnonId = `anon_${randHex}`;
         localStorage.setItem(STORAGE_KEY_USER, myAnonId);
-      }
-
-      let myVotes = {};
-      try {
-        const savedVotes = localStorage.getItem(STORAGE_KEY_VOTES);
-        if (savedVotes) myVotes = JSON.parse(savedVotes);
-      } catch (e) {
-        myVotes = {};
-      }
-
-      function saveUserVotes() {
-        try {
-          localStorage.setItem(STORAGE_KEY_VOTES, JSON.stringify(myVotes));
-        } catch (e) {}
       }
 
       // ------------------------------------------------------------------------
@@ -1242,7 +1152,7 @@
           const diffHr = Math.floor(diffMin / 60);
           if (diffHr < 24) return `${diffHr}h ago`;
           const diffDay = Math.floor(diffHr / 24);
-          if (diffDay < 30) return `${diffDay}d ago`;
+          if (diffDay < 365) return `${diffDay}d ago`;
 
           return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         } catch (e) {
@@ -1311,9 +1221,6 @@
         feedCardsContainer.innerHTML = feedPosts.map(post => {
           const isSelf = (post.user_id === myAnonId);
           const timeFormatted = formatRelativeTime(post.created_at);
-          const upvotesCount = parseInt(post.upvotes || 0, 10);
-          const downvotesCount = parseInt(post.downvotes || 0, 10);
-          const myVote = myVotes[post.id]; // 'up' or 'down'
 
           return `
             <article 
@@ -1351,36 +1258,6 @@
               </div>
 
               <div class="bubble-content">${escapeHtml(post.content)}</div>
-
-              <div class="bubble-footer">
-                <div class="vote-actions-group">
-                  <!-- Upvote Button -->
-                  <button 
-                    class="vote-pill ${myVote === 'up' ? 'upvoted' : ''}" 
-                    onclick="window.handleVote(event, '${post.id}', 'up')" 
-                    title="Upvote" 
-                    aria-label="Upvote"
-                  >
-                    <svg viewBox="0 0 24 24">
-                      <polyline points="18 15 12 9 6 15" />
-                    </svg>
-                    <span>${upvotesCount}</span>
-                  </button>
-
-                  <!-- Downvote Button -->
-                  <button 
-                    class="vote-pill ${myVote === 'down' ? 'downvoted' : ''}" 
-                    onclick="window.handleVote(event, '${post.id}', 'down')" 
-                    title="Downvote" 
-                    aria-label="Downvote"
-                  >
-                    <svg viewBox="0 0 24 24">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                    <span>${downvotesCount}</span>
-                  </button>
-                </div>
-              </div>
             </article>
           `;
         }).join('');
@@ -1403,9 +1280,6 @@
           let startY = 0;
 
           function startPress(e) {
-            // Ignore if clicked on vote buttons
-            if (e.target.closest('.vote-pill')) return;
-
             if (e.type === 'touchstart') {
               startX = e.touches[0].clientX;
               startY = e.touches[0].clientY;
@@ -1498,7 +1372,7 @@
         try {
           if (supabaseClient) {
             const { error } = await supabaseClient
-              .from(activeTableName)
+              .from(DATABASE_TABLE)
               .delete()
               .eq('id', postId)
               .eq('user_id', myAnonId);
@@ -1519,60 +1393,63 @@
       }
 
       // ------------------------------------------------------------------------
-      // 9. FETCH POSTS FROM SUPABASE
+      // 9. HTTP POLLING: FETCH MESSAGES FROM SUPABASE (5-SECOND INTERVAL)
       // ------------------------------------------------------------------------
-      async function fetchRecentFeed() {
-        // Load from local storage cache first for instant feedback
-        try {
-          const cached = localStorage.getItem(STORAGE_KEY_POSTS);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              feedPosts = parsed;
-              renderFeed();
-            }
-          }
-        } catch (e) {}
-
+      async function fetchMessages() {
         if (!supabaseClient) return;
 
-        // Try primary table 'anonymous_posts'
-        let { data, error } = await supabaseClient
-          .from('anonymous_posts')
-          .select('id, content, user_id, upvotes, downvotes, created_at')
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        // Fallback to 'posts' table if 'anonymous_posts' table is not yet created in Supabase
-        if (error && error.code === 'PGRST205') {
-          console.warn("Table 'anonymous_posts' not found, falling back to 'posts'");
-          activeTableName = 'posts';
-          const fb = await supabaseClient
-            .from('posts')
+        try {
+          // Simple SELECT query via Supabase Client SDK to retrieve latest messages
+          const { data, error } = await supabaseClient
+            .from(DATABASE_TABLE)
             .select('id, content, user_id, created_at')
             .order('created_at', { ascending: false })
             .limit(100);
-          data = fb.data;
-          error = fb.error;
-        } else {
-          activeTableName = 'anonymous_posts';
-        }
 
-        if (error) {
-          console.warn('Error fetching posts:', error);
-          return;
-        }
+          if (error) {
+            console.warn('Error polling messages from Supabase:', error.message || error);
+            return;
+          }
 
-        if (Array.isArray(data)) {
-          feedPosts = data.map(p => ({
-            ...p,
-            upvotes: p.upvotes || 0,
-            downvotes: p.downvotes || 0
-          }));
-          renderFeed();
-          try {
-            localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
-          } catch (e) {}
+          if (Array.isArray(data)) {
+            const freshPosts = data;
+
+            // Update feed if records or message content have changed
+            const hasChanged = (freshPosts.length !== feedPosts.length) ||
+              freshPosts.some((post, idx) => {
+                const existing = feedPosts[idx];
+                return !existing ||
+                  existing.id !== post.id ||
+                  existing.content !== post.content;
+              });
+
+            if (hasChanged || feedPosts.length === 0) {
+              feedPosts = freshPosts;
+              renderFeed();
+              try {
+                localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+              } catch (e) {}
+            }
+          }
+        } catch (err) {
+          // Error handling ensures no console crashes or unhandled rejections
+          console.warn('Polling network exception handled:', err);
+        }
+      }
+
+      // Reusable alias for backwards compatibility
+      const fetchRecentFeed = fetchMessages;
+
+      // ------------------------------------------------------------------------
+      // 9b. DYNAMIC FIFO CAPACITY PURGE HELPER
+      // ------------------------------------------------------------------------
+      async function enforceFifoCapacityPurge() {
+        if (!supabaseClient) return;
+        try {
+          // Execute server-side FIFO purge routine if configured
+          await supabaseClient.rpc('purge_excess_posts_fifo');
+        } catch (e) {
+          // Fail-safe: Database trigger handles automatic FIFO capacity purge on insert
         }
       }
 
@@ -1598,17 +1475,18 @@
 
           const newPostPayload = {
             content: content,
-            user_id: myAnonId,
-            upvotes: 0,
-            downvotes: 0
+            user_id: myAnonId
           };
 
           const { data, error } = await supabaseClient
-            .from(activeTableName)
+            .from(DATABASE_TABLE)
             .insert([newPostPayload])
-            .select();
+            .select('id, content, user_id, created_at');
 
           if (error) throw error;
+
+          // Trigger dynamic capacity purge check (FIFO)
+          enforceFifoCapacityPurge();
 
           // Clear textarea & reset word counter
           postContentInput.value = '';
@@ -1617,18 +1495,14 @@
 
           // If select returned data, prepend to feed immediately
           if (data && data[0]) {
-            const inserted = {
-              ...data[0],
-              upvotes: data[0].upvotes || 0,
-              downvotes: data[0].downvotes || 0
-            };
+            const inserted = data[0];
             feedPosts = [inserted, ...feedPosts.filter(p => p.id !== inserted.id)];
             renderFeed();
             try {
               localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
             } catch (e) {}
           } else {
-            await fetchRecentFeed();
+            await fetchMessages();
           }
         } catch (err) {
           console.error('Broadcast failed:', err);
@@ -1651,121 +1525,7 @@
       }
 
       // ------------------------------------------------------------------------
-      // 11. UPVOTE & DOWNVOTE HANDLER
-      // ------------------------------------------------------------------------
-      window.handleVote = async function (e, postId, voteType) {
-        if (e) e.stopPropagation();
-
-        const post = feedPosts.find(p => p.id === postId);
-        if (!post) return;
-
-        const currentVote = myVotes[postId];
-        let newUpvotes = parseInt(post.upvotes || 0, 10);
-        let newDownvotes = parseInt(post.downvotes || 0, 10);
-
-        if (currentVote === voteType) {
-          // Toggle off vote
-          delete myVotes[postId];
-          if (voteType === 'up') newUpvotes = Math.max(0, newUpvotes - 1);
-          if (voteType === 'down') newDownvotes = Math.max(0, newDownvotes - 1);
-        } else {
-          // If switching from opposite vote
-          if (currentVote === 'up') newUpvotes = Math.max(0, newUpvotes - 1);
-          if (currentVote === 'down') newDownvotes = Math.max(0, newDownvotes - 1);
-
-          myVotes[postId] = voteType;
-          if (voteType === 'up') newUpvotes += 1;
-          if (voteType === 'down') newDownvotes += 1;
-        }
-
-        saveUserVotes();
-        post.upvotes = newUpvotes;
-        post.downvotes = newDownvotes;
-        renderFeed();
-
-        // Update database if table supports it
-        if (supabaseClient && activeTableName === 'anonymous_posts') {
-          try {
-            await supabaseClient
-              .from('anonymous_posts')
-              .update({ upvotes: newUpvotes, downvotes: newDownvotes })
-              .eq('id', postId);
-          } catch (e) {
-            console.warn('Vote update sync failed:', e);
-          }
-        }
-      };
-
-      // ------------------------------------------------------------------------
-      // 12. SUPABASE REALTIME SUBSCRIPTION
-      // ------------------------------------------------------------------------
-      function setupRealtimeListener() {
-        if (!supabaseClient) return;
-
-        try {
-          const channel = supabaseClient
-            .channel('public:anonymous_posts')
-            .on(
-              'postgres_changes',
-              { event: 'INSERT', schema: 'public', table: activeTableName },
-              (payload) => {
-                if (!payload || !payload.new) return;
-                const newRecord = {
-                  ...payload.new,
-                  upvotes: payload.new.upvotes || 0,
-                  downvotes: payload.new.downvotes || 0
-                };
-                if (!feedPosts.some(p => p.id === newRecord.id)) {
-                  feedPosts = [newRecord, ...feedPosts];
-                  renderFeed();
-                  try {
-                    localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
-                  } catch (e) {}
-                }
-              }
-            )
-            .on(
-              'postgres_changes',
-              { event: 'DELETE', schema: 'public', table: activeTableName },
-              (payload) => {
-                if (!payload || !payload.old) return;
-                feedPosts = feedPosts.filter(p => p.id !== payload.old.id);
-                renderFeed();
-                try {
-                  localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
-                } catch (e) {}
-              }
-            )
-            .on(
-              'postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: activeTableName },
-              (payload) => {
-                if (!payload || !payload.new) return;
-                feedPosts = feedPosts.map(p => {
-                  if (p.id === payload.new.id) {
-                    return {
-                      ...p,
-                      ...payload.new,
-                      upvotes: payload.new.upvotes || 0,
-                      downvotes: payload.new.downvotes || 0
-                    };
-                  }
-                  return p;
-                });
-                renderFeed();
-                try {
-                  localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
-                } catch (e) {}
-              }
-            )
-            .subscribe();
-        } catch (e) {
-          console.warn('Realtime subscription failed:', e);
-        }
-      }
-
-      // ------------------------------------------------------------------------
-      // 13. OPTIONS MENU & PDF HISTORY EXPORT
+      // 11. OPTIONS MENU & PDF HISTORY EXPORT
       // ------------------------------------------------------------------------
       if (btnOptionsMenu && dropdownMenu) {
         btnOptionsMenu.addEventListener('click', (e) => {
@@ -1792,47 +1552,82 @@
             return;
           }
 
-          showToast('Preparing PDF export...');
+          showToast('Generating PDF export...');
 
-          // Build clean, professional printable HTML
+          // Format generation date and time
+          const generatedDateStr = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+
+          // Build clean, professional printable HTML with page-break-inside avoid
           pdfStagingArea.innerHTML = `
-            <div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#1e293b;padding:32px;background:#ffffff;">
-              <div style="border-bottom:2px solid #DC2626;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#0f172a;padding:36px;background:#ffffff;box-sizing:border-box;width:100%;">
+              <!-- PDF Document Header -->
+              <div style="border-bottom:2.5px solid #DC2626;padding-bottom:18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;">
                 <div>
-                  <h1 style="margin:0;font-size:24px;color:#9E2A2A;font-weight:bold;">BATCH-47</h1>
-                  <p style="margin:4px 0 0 0;font-size:12px;color:#64748B;letter-spacing:0.1em;text-transform:uppercase;">Official Anonymous Feed History</p>
+                  <div style="font-size:24px;color:#9E2A2A;font-weight:900;letter-spacing:0.04em;line-height:1.15;margin:0;">BATCH-47</div>
+                  <div style="font-size:11px;color:#64748B;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;margin-top:5px;">Official Anonymous Feed History</div>
                 </div>
-                <div style="text-align:right;font-size:11px;color:#94A3B8;">
-                  Generated on ${new Date().toLocaleString()}
+                <div style="text-align:right;font-size:11px;color:#64748B;font-weight:600;line-height:1.45;">
+                  <div>Export Date: ${generatedDateStr}</div>
+                  <div>Total Posts: ${feedPosts.length}</div>
                 </div>
               </div>
 
-              <div>
-                ${feedPosts.map((p, i) => `
-                  <div style="border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px;margin-bottom:12px;background:#F8FAFC;">
-                    <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:6px;font-weight:bold;">
-                      <span>#${i + 1} • ${escapeHtml(p.user_id === myAnonId ? 'My Post' : 'Anonymous Feed')}</span>
-                      <span>${new Date(p.created_at).toLocaleString()}</span>
+              <!-- Message Stream List -->
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                ${feedPosts.map((p, i) => {
+                  const isAuthor = (p.user_id === myAnonId);
+                  const postTime = new Date(p.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+
+                  return `
+                    <div style="border:1px solid #CBD5E1;border-left:4px solid ${isAuthor ? '#DC2626' : '#475569'};border-radius:8px;padding:14px 18px;background:#F8FAFC;page-break-inside:avoid;break-inside:avoid;margin-bottom:12px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:8px;font-weight:700;">
+                        <span style="text-transform:uppercase;color:${isAuthor ? '#B93838' : '#334155'};letter-spacing:0.04em;">
+                          #${i + 1} • ${isAuthor ? 'My Post' : 'Anonymous Feed'}
+                        </span>
+                        <span style="font-family:monospace;font-size:10px;color:#64748B;">${postTime}</span>
+                      </div>
+                      <div style="font-size:13px;line-height:1.6;color:#0F172A;font-weight:500;word-break:break-word;white-space:pre-wrap;">
+                        ${escapeHtml(p.content)}
+                      </div>
                     </div>
-                    <div style="font-size:13px;line-height:1.5;color:#0F172A;">
-                      ${escapeHtml(p.content)}
-                    </div>
-                  </div>
-                `).join('')}
+                  `;
+                }).join('')}
               </div>
 
-              <div style="margin-top:32px;border-top:1px solid #E2E8F0;padding-top:12px;font-size:10px;color:#94A3B8;text-align:center;">
+              <!-- PDF Document Footer -->
+              <div style="margin-top:32px;border-top:1px solid #E2E8F0;padding-top:14px;font-size:10px;color:#94A3B8;text-align:center;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">
                 Batch-47 Community • Confidential Anonymous Archive
               </div>
             </div>
           `;
 
+          // Allow the DOM to compute geometry and fonts accurately
+          await new Promise(resolve => setTimeout(resolve, 150));
+
           const opt = {
-            margin: [10, 10, 10, 10],
+            margin: [10, 10, 12, 10],
             filename: `Batch-47-Feed-History-${new Date().toISOString().slice(0, 10)}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              scrollY: 0
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
           };
 
           try {
@@ -1849,8 +1644,8 @@
 
       // Initialize Application
       handleComposerInput();
-      fetchRecentFeed();
-      setupRealtimeListener();
+      fetchMessages();
+      setInterval(fetchMessages, 5000);
 
     })();
   </script>
