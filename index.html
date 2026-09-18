@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Batch-47 | Anonymous Feed</title>
 
-  <!-- Supabase JS Client SDK -->
+  <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-client@2"></script>
-  <!-- html2pdf Library for PDF Export -->
+  <!-- html2pdf Library for PDF Download -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -27,6 +27,8 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
+      /* Prevents double-tap zoom on mobile devices */
+      touch-action: manipulation;
     }
 
     body {
@@ -148,7 +150,6 @@
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 14px;
-      position: relative;
     }
 
     .post-input {
@@ -196,11 +197,15 @@
       cursor: pointer;
       box-shadow: 0 0 15px rgba(217, 35, 46, 0.4);
       transition: all 0.2s;
+      user-select: none;
     }
 
     .post-btn:hover {
       background: var(--accent-red-hover);
-      transform: translateY(-1px);
+    }
+
+    .post-btn:active {
+      transform: scale(0.97);
     }
 
     .post-btn:disabled {
@@ -278,25 +283,14 @@
       color: #636674;
     }
 
-    .post-author-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .post-author {
+      font-weight: 600;
+      color: #9ca3af;
     }
 
     .post-time {
       font-size: 11px;
       color: #525562;
-    }
-
-    .post-ip-badge {
-      font-family: monospace;
-      font-size: 10px;
-      background: rgba(217, 35, 46, 0.15);
-      color: #f43f5e;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid rgba(217, 35, 46, 0.3);
     }
 
     .post-content {
@@ -307,7 +301,7 @@
       white-space: pre-wrap;
     }
 
-    .post-options-btn {
+    .delete-btn {
       background: transparent;
       border: none;
       color: #636674;
@@ -318,11 +312,11 @@
       transition: color 0.2s;
     }
 
-    .post-options-btn:hover {
+    .delete-btn:hover {
       color: var(--accent-red);
     }
 
-    /* Menu Dropdown */
+    /* Navigation Dropdown Menu */
     .dropdown-menu {
       position: absolute;
       top: 60px;
@@ -335,7 +329,7 @@
       display: none;
       flex-direction: column;
       overflow: hidden;
-      min-width: 220px;
+      min-width: 200px;
     }
 
     .dropdown-menu.show { display: flex; }
@@ -359,94 +353,7 @@
       color: #fff;
     }
 
-    /* Modal System */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(4px);
-      z-index: 200;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-
-    .modal-overlay.show { display: flex; }
-
-    .modal-box {
-      background: #111116;
-      border: 1px solid #23161a;
-      border-radius: 16px;
-      padding: 22px;
-      width: 100%;
-      max-width: 360px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
-    }
-
-    .modal-title {
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 14px;
-      color: #fff;
-    }
-
-    .modal-input {
-      width: 100%;
-      padding: 12px;
-      background: #181820;
-      border: 1px solid #2a2a38;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 14px;
-      margin-bottom: 16px;
-      outline: none;
-    }
-
-    .modal-input:focus { border-color: var(--accent-red); }
-
-    .modal-btns {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .btn-cancel {
-      background: rgba(255, 255, 255, 0.08);
-      color: #ccc;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .btn-confirm {
-      background: var(--accent-red);
-      color: #fff;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .admin-indicator {
-      background: rgba(217, 35, 46, 0.15);
-      border: 1px solid var(--accent-red);
-      color: #ff4d5a;
-      font-size: 11px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      text-align: center;
-      margin-bottom: 14px;
-      display: none;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    /* Template for PDF Export */
+    /* Template Container for PDF Export */
     #pdf-container {
       display: none;
       background: #ffffff;
@@ -475,7 +382,7 @@
 <body>
 
   <div class="app-container">
-    <!-- Header -->
+    <!-- App Header -->
     <header class="header">
       <div class="brand-section">
         <div class="logo-circle">47</div>
@@ -487,16 +394,12 @@
       <button class="menu-btn" id="menu-toggle-btn" title="Menu">⋮</button>
     </header>
 
-    <!-- Navigation Dropdown Menu -->
+    <!-- Top Dropdown Menu -->
     <div class="dropdown-menu" id="dropdown-menu">
-      <button class="dropdown-item" id="export-pdf-btn">📄 Export 30 Days History (PDF)</button>
-      <button class="dropdown-item" id="admin-login-btn">🔑 Admin Portal Login</button>
+      <button class="dropdown-item" id="export-pdf-btn">📄 Export Feed History (PDF)</button>
     </div>
 
-    <!-- Admin Indicator Badge -->
-    <div class="admin-indicator" id="admin-badge">⚡ LOGGED IN AS ADMIN</div>
-
-    <!-- Post Input Box -->
+    <!-- Post Creation Box -->
     <section class="input-card">
       <div class="textarea-wrapper">
         <textarea 
@@ -512,7 +415,7 @@
       </div>
     </section>
 
-    <!-- Timeline Bar -->
+    <!-- Realtime Timeline Label -->
     <div class="timeline-bar">
       <div class="timeline-title">
         <span class="live-dot"></span> LIVE TIMELINE
@@ -520,63 +423,35 @@
       <div class="expiry-text">Auto-expires after 30 days</div>
     </div>
 
-    <!-- Posts Container -->
+    <!-- Live Posts Container -->
     <main class="posts-list" id="posts-container">
       <div style="text-align: center; color: #636674; font-size: 13px; padding: 20px;">
-        Loading feed...
+        Connecting to live feed...
       </div>
     </main>
   </div>
 
-  <!-- Admin Login Modal -->
-  <div class="modal-overlay" id="admin-modal">
-    <div class="modal-box">
-      <div class="modal-title">Admin Login</div>
-      <input type="password" id="admin-password-input" class="modal-input" placeholder="Enter Admin Password">
-      <div class="modal-btns">
-        <button class="btn-cancel" id="close-admin-modal">Cancel</button>
-        <button class="btn-confirm" id="confirm-admin-login">Login</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PDF Export Container -->
+  <!-- Hidden Container for generating PDF -->
   <div id="pdf-container"></div>
 
   <script>
     // ==========================================
-    // 1. SUPABASE & CONFIGURATION
+    // 1. SUPABASE CLIENT & AUTO REGISTRATION
     // ==========================================
     const SUPABASE_URL = "https://oeipqyttvkxqrtzesowb.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9laXBxeXR0dmt4cXJ0emVzb3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDkzNjAsImV4cCI6MjEwNTMyNTM2MH0.nkZXFz89-9MhDqjnjOUS5QXp48m5FG91JqpdfxPifoE";
-    const ADMIN_PASSWORD_HASH = "Golap204-14897-2022"; 
 
-    const { createClient } = supabase;
-    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let clientIp = "127.0.0.1";
-    let isAdmin = false;
-    let userDeviceId = localStorage.getItem("b47_device_id");
-
-    if (!userDeviceId) {
-      userDeviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-      localStorage.setItem("b47_device_id", userDeviceId);
-    }
-
-    // Fetch Client IP Address
-    fetch("https://api.ipify.org?format=json")
-      .then(res => res.json())
-      .then(data => { clientIp = data.ip; })
-      .catch(() => { clientIp = "Unknown IP"; });
-
-    // Check Session Admin Status
-    if (sessionStorage.getItem("b47_admin") === "true") {
-      isAdmin = true;
-      document.getElementById("admin-badge").style.display = "block";
+    // Auto-Register user by creating a unique ID if not present
+    let currentUserId = localStorage.getItem("b47_anon_id");
+    if (!currentUserId) {
+      currentUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      localStorage.setItem("b47_anon_id", currentUserId);
     }
 
     // ==========================================
-    // 2. WORD COUNT (Max 47 Words)
+    // 2. WORD COUNT MANAGEMENT (Max 47 Words)
     // ==========================================
     const postTextInput = document.getElementById("post-text");
     const wordCountDisplay = document.getElementById("word-count-display");
@@ -600,16 +475,17 @@
     });
 
     // ==========================================
-    // 3. POST SUBMISSION (Pure Text)
+    // 3. SUBMIT POST FUNCTIONALITY
     // ==========================================
     const submitPostBtn = document.getElementById("submit-post-btn");
 
-    submitPostBtn.addEventListener("click", async () => {
+    submitPostBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
       const content = postTextInput.value.trim();
       const wordCount = getWordCount(content);
 
       if (!content) {
-        alert("Please write something before posting!");
+        alert("Please write a message before posting!");
         return;
       }
 
@@ -622,38 +498,21 @@
       submitPostBtn.innerText = "Posting...";
 
       try {
-        // Check Blocked IP Status
-        const { data: blocked } = await db
-          .from("blocked_ips")
-          .select("ip")
-          .eq("ip", clientIp)
-          .single();
-
-        if (blocked) {
-          alert("Your IP address has been blocked from posting.");
-          submitPostBtn.disabled = false;
-          submitPostBtn.innerText = "Post Now";
-          return;
-        }
-
-        // Insert Text Post
         const { error } = await db.from("posts").insert([
           {
             content: content,
-            user_ip: clientIp,
-            device_id: userDeviceId,
-            created_at: new Date().toISOString()
+            user_id: currentUserId
           }
         ]);
 
         if (error) throw error;
 
-        // Reset Textarea
+        // Reset input on success
         postTextInput.value = "";
         wordCountDisplay.innerText = "0 / 47 words";
 
       } catch (err) {
-        alert("Failed to post: " + err.message);
+        alert("Failed to send message: " + (err.message || "Network error"));
       } finally {
         submitPostBtn.disabled = false;
         submitPostBtn.innerText = "Post Now";
@@ -661,56 +520,14 @@
     });
 
     // ==========================================
-    // 4. FETCH & REALTIME POSTS (30 Days Retention)
+    // 4. FETCH POSTS & REALTIME WEBSOCKET LISTEN
     // ==========================================
     const postsContainer = document.getElementById("posts-container");
 
     function formatDate(dateStr) {
+      if (!dateStr) return "";
       const date = new Date(dateStr);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + date.toLocaleDateString();
-    }
-
-    async function fetchPosts() {
-      // 30 Days Expiry Calculation
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      const { data: posts, error } = await db
-        .from("posts")
-        .select("*")
-        .gte("created_at", thirtyDaysAgo)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        postsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 13px;">Error loading timeline!</div>`;
-        return;
-      }
-
-      if (!posts || posts.length === 0) {
-        postsContainer.innerHTML = `<div style="text-align: center; color: #636674; font-size: 13px; padding: 20px;">No messages yet. Be the first to post!</div>`;
-        return;
-      }
-
-      postsContainer.innerHTML = posts.map(post => {
-        const isOwner = post.device_id === userDeviceId;
-        const canDelete = isOwner || isAdmin;
-
-        return `
-          <div class="post-card" id="post-${post.id}">
-            <div class="post-header">
-              <div class="post-author-info">
-                <span>Anonymous</span>
-                ${isAdmin ? `<span class="post-ip-badge">IP: ${post.user_ip}</span>` : ''}
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="post-time">${formatDate(post.created_at)}</span>
-                ${canDelete ? `<button class="post-options-btn" onclick="deletePost('${post.id}')" title="Delete">🗑️</button>` : ''}
-                ${isAdmin ? `<button class="post-options-btn" onclick="blockIp('${post.user_ip}')" title="Block IP">🚫</button>` : ''}
-              </div>
-            </div>
-            <div class="post-content">${escapeHTML(post.content)}</div>
-          </div>
-        `;
-      }).join("");
     }
 
     function escapeHTML(str) {
@@ -719,42 +536,78 @@
       );
     }
 
-    // Supabase Realtime Listener
+    async function fetchPosts() {
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { data: posts, error } = await db
+          .from("posts")
+          .select("*")
+          .gte("created_at", thirtyDaysAgo)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          postsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">Database Error: ${error.message}</div>`;
+          return;
+        }
+
+        if (!posts || posts.length === 0) {
+          postsContainer.innerHTML = `<div style="text-align: center; color: #636674; padding: 20px;">No messages yet. Be the first to post!</div>`;
+          return;
+        }
+
+        postsContainer.innerHTML = posts.map(post => {
+          // Verify if post belongs to current user
+          const isOwner = post.user_id === currentUserId;
+
+          return `
+            <div class="post-card" id="post-${post.id}">
+              <div class="post-header">
+                <span class="post-author">Anonymous</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="post-time">${formatDate(post.created_at)}</span>
+                  ${isOwner ? `<button class="delete-btn" onclick="deletePost('${post.id}')" title="Delete your post">🗑️</button>` : ''}
+                </div>
+              </div>
+              <div class="post-content">${escapeHTML(post.content)}</div>
+            </div>
+          `;
+        }).join("");
+
+      } catch (err) {
+        postsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">Connection Error: ${err.message}</div>`;
+      }
+    }
+
+    // Supabase Realtime WebSocket Listener
     db.channel('public:posts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
         fetchPosts();
       })
       .subscribe();
 
+    // Initial Load
     fetchPosts();
 
     // ==========================================
-    // 5. DELETION & BLOCKING ACTIONS
+    // 5. DELETE OWN POST ACTION
     // ==========================================
     window.deletePost = async (postId) => {
-      if (confirm("Are you sure you want to delete this message?")) {
-        const { error } = await db.from("posts").delete().eq("id", postId);
-        if (error) alert("Could not delete message: " + error.message);
-      }
-    };
-
-    window.blockIp = async (ipToBlock) => {
-      if (confirm(`Are you sure you want to block IP: ${ipToBlock}?`)) {
-        const { error } = await db.from("blocked_ips").insert([{ ip: ipToBlock }]);
+      if (confirm("Are you sure you want to delete your post?")) {
+        const { error } = await db.from("posts").delete().eq("id", postId).eq("user_id", currentUserId);
         if (error) {
-          alert("Failed to block IP: " + error.message);
+          alert("Could not delete message: " + error.message);
         } else {
-          alert(`IP ${ipToBlock} has been blocked.`);
+          fetchPosts();
         }
       }
     };
 
     // ==========================================
-    // 6. MODALS & NAVIGATION
+    // 6. UI TOGGLES & PDF EXPORT
     // ==========================================
     const menuBtn = document.getElementById("menu-toggle-btn");
     const dropdownMenu = document.getElementById("dropdown-menu");
-    const adminModal = document.getElementById("admin-modal");
 
     menuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -763,45 +616,15 @@
 
     document.addEventListener("click", () => dropdownMenu.classList.remove("show"));
 
-    document.getElementById("admin-login-btn").addEventListener("click", () => {
-      dropdownMenu.classList.remove("show");
-      adminModal.classList.add("show");
-    });
-
-    document.getElementById("close-admin-modal").addEventListener("click", () => {
-      adminModal.classList.remove("show");
-    });
-
-    document.getElementById("confirm-admin-login").addEventListener("click", () => {
-      const pwd = document.getElementById("admin-password-input").value;
-      if (pwd === ADMIN_PASSWORD_HASH) {
-        isAdmin = true;
-        sessionStorage.setItem("b47_admin", "true");
-        document.getElementById("admin-badge").style.display = "block";
-        adminModal.classList.remove("show");
-        document.getElementById("admin-password-input").value = "";
-        fetchPosts();
-        alert("Admin login successful!");
-      } else {
-        alert("Incorrect password!");
-      }
-    });
-
-    // ==========================================
-    // 7. EXPORT PDF BACKUP (30 Days History)
-    // ==========================================
+    // PDF Backup Export Action
     document.getElementById("export-pdf-btn").addEventListener("click", async () => {
       dropdownMenu.classList.remove("show");
-      
+
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: posts } = await db
-        .from("posts")
-        .select("*")
-        .gte("created_at", thirtyDaysAgo)
-        .order("created_at", { ascending: true });
+      const { data: posts } = await db.from("posts").select("*").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: true });
 
       if (!posts || posts.length === 0) {
-        alert("No chat history found for the last 30 days to export.");
+        alert("No chat history available to export.");
         return;
       }
 
@@ -810,13 +633,11 @@
       
       pdfContainer.innerHTML = `
         <h2>Batch-47 Anonymous Feed</h2>
-        <p style="font-size: 12px; color: #555; margin-bottom: 15px;">Exported Chat History (Last 30 Days)</p>
+        <p style="font-size: 11px; color: #666; margin-bottom: 12px;">Exported Feed History (30 Days)</p>
         <div>
           ${posts.map(p => `
             <div class="pdf-post-item">
-              <div class="pdf-meta">
-                <strong>Anonymous</strong> ${isAdmin ? `[IP: ${p.user_ip}]` : ''} - ${formatDate(p.created_at)}
-              </div>
+              <div class="pdf-meta"><strong>Anonymous</strong> - ${formatDate(p.created_at)}</div>
               <div style="font-size: 13px;">${escapeHTML(p.content)}</div>
             </div>
           `).join('')}
@@ -824,11 +645,11 @@
       `;
 
       const opt = {
-        margin:       10,
-        filename:     'Batch47_30Days_Chat_History.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: 'Batch47_Feed_History.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       html2pdf().set(opt).from(pdfContainer).save().then(() => {
