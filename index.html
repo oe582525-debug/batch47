@@ -1,601 +1,1856 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Batch-47 | Anonymous Feed</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Batch-47 — Anonymous Feed</title>
+  <meta name="description" content="Official anonymous feed for Batch-47. Minimalist, WhatsApp-inspired feed with real-time updates and strict 47-word limit." />
 
-  <!-- Supabase JS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-client@2"></script>
-  <!-- html2pdf Library -->
+  <!-- Premium Typography: Plus Jakarta Sans (High-Contrast Bold UI & Body) and JetBrains Mono (Technical Counters) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- html2pdf.js for Clean PDF Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
-    :root {
-      --bg-color: #050508;
-      --card-bg: #0b0b10;
-      --input-bg: #08080d;
-      --border-color: #1a1618;
-      --accent-red: #d9232e;
-      --accent-red-hover: #f43f5e;
-      --text-main: #f3f4f6;
-      --text-muted: #808493;
-    }
-
-    * {
+    /* ==========================================================================
+       CSS RESET, RIGOROUS NON-ZOOM & SECURITY RULES
+       ========================================================================== */
+    *, *::before, *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
       touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    :root {
+      /* Primary Crimson Palette */
+      --crimson-start: #B93838;
+      --crimson-end: #9E2A2A;
+      --crimson-accent: #DC2626;
+      --crimson-hover: #EF4444;
+      --crimson-active: #991B1B;
+      --crimson-glow: rgba(220, 38, 38, 0.35);
+
+      /* WhatsApp-Inspired Slate & Obsidian Palette */
+      --bg-canvas: #0B0E14;
+      --bg-panel: #111722;
+      --bg-card: #161F30;
+      --bg-card-hover: #1C273D;
+      --bg-bubble-self: #1A2333;
+      --bg-input: #0D131E;
+
+      /* Crisp Borders */
+      --border-subtle: #243044;
+      --border-crisp: #334155;
+      --border-glow: rgba(220, 38, 38, 0.4);
+
+      /* Typography & Text Shades */
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      --text-white: #FFFFFF;
+      --text-cream: #FFFDF9;
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --text-dim: #475569;
+
+      /* Status & Vote Colors */
+      --color-upvote: #10B981;
+      --color-upvote-bg: rgba(16, 185, 129, 0.12);
+      --color-downvote: #F43F5E;
+      --color-downvote-bg: rgba(244, 63, 94, 0.12);
+      --color-warning: #F59E0B;
+
+      /* Radii */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-card: 16px;
+      --radius-pill: 9999px;
+
+      /* Shadows */
+      --shadow-header: 0 4px 20px rgba(0, 0, 0, 0.35);
+      --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.25);
+      --shadow-bubble: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
 
     body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-main);
       min-height: 100vh;
       display: flex;
-      justify-content: center;
-      position: relative;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       overflow-x: hidden;
+      padding-bottom: 3.5rem;
     }
 
-    /* Background Watermark '47' */
+    /* Subtle Geometric Background Watermark */
     body::before {
       content: "47";
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: clamp(220px, 55vw, 450px);
+      font-family: var(--font-main);
       font-weight: 900;
-      color: rgba(217, 35, 46, 0.025);
-      z-index: 0;
+      font-size: clamp(240px, 45vw, 420px);
+      line-height: 1;
+      color: rgba(220, 38, 38, 0.025);
       pointer-events: none;
-      font-family: 'Times New Roman', Georgia, serif;
+      z-index: 0;
       user-select: none;
     }
 
-    .app-container {
+    /* App Shell Container */
+    .app-viewport {
       width: 100%;
-      max-width: 520px;
-      padding: 20px 16px;
+      max-width: 680px;
       position: relative;
       z-index: 1;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* Header Styling */
-    .header {
+    /* ==========================================================================
+       1. HEADER DESIGN (CLEAN, MINIMAL, CRIMSON GRADIENT)
+       ========================================================================== */
+    .app-header {
+      width: 100%;
+      background: linear-gradient(135deg, var(--crimson-start) 0%, var(--crimson-end) 100%);
+      box-shadow: var(--shadow-header);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.85rem 1.25rem;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 22px;
-      position: relative; /* Fix for dropdown menu */
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     }
 
-    .brand-section {
+    .header-branding {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 0.85rem;
+      text-decoration: none;
+      user-select: none;
     }
 
-    .logo-circle {
-      width: 40px;
-      height: 40px;
-      background: #8e181f;
-      border-radius: 50%;
+    /* Stylized "47" Geometric Logo Badge */
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 16px;
-      color: #ffffff;
-      box-shadow: 0 0 12px rgba(217, 35, 46, 0.3);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.25);
+      flex-shrink: 0;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
-    .brand-title {
-      font-family: 'Georgia', serif;
-      font-size: 19px;
-      font-weight: 700;
-      color: #ffffff;
-      line-height: 1.1;
+    .logo-badge svg {
+      width: 28px;
+      height: 28px;
+      fill: none;
+      stroke: var(--text-cream);
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
-    .brand-subtitle {
-      font-size: 9px;
-      color: var(--accent-red);
-      letter-spacing: 1.4px;
-      font-weight: 600;
-      margin-top: 3px;
+    /* Header Titles */
+    .branding-titles {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.08rem;
+    }
+
+    .title-line-1 {
+      font-size: 1.28rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--text-cream);
+      line-height: 1.15;
       text-transform: uppercase;
     }
 
-    .menu-btn {
-      background: transparent;
-      border: none;
-      color: var(--accent-red);
-      font-size: 24px;
-      cursor: pointer;
-      padding: 4px 8px;
+    .title-line-2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: rgba(255, 253, 249, 0.82);
+      line-height: 1.15;
+      text-transform: uppercase;
+    }
+
+    /* Header Right Actions */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      position: relative;
+    }
+
+    .btn-header-icon {
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-cream);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
+      cursor: pointer;
+      transition: background 0.18s ease, transform 0.14s ease;
+      outline: none;
     }
 
-    /* Post Input Card */
-    .input-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 16px;
-      margin-bottom: 22px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    .btn-header-icon:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.04);
     }
 
-    .textarea-wrapper {
-      background: var(--input-bg);
-      border: 1px solid #161214;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 14px;
+    .btn-header-icon:active {
+      transform: scale(0.96);
     }
 
-    .post-input {
+    .btn-header-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* Options Dropdown Menu */
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-md);
+      padding: 0.4rem;
+      min-width: 210px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: none;
+      flex-direction: column;
+      z-index: 120;
+      animation: menuFadeIn 0.18s ease forwards;
+    }
+
+    .dropdown-menu.show {
+      display: flex;
+    }
+
+    @keyframes menuFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.65rem 0.9rem;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      cursor: pointer;
       width: 100%;
-      height: 85px;
+      text-align: left;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(220, 38, 38, 0.15);
+      color: var(--text-white);
+    }
+
+    .dropdown-item svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    /* ==========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================== */
+    .app-main {
+      width: 100%;
+      padding: 1.25rem 1rem 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ==========================================================================
+       2. INPUT COMPONENT (16PX RADIUS CARD, STRICT 47-WORD LIMIT)
+       ========================================================================== */
+    .composer-card {
+      width: 100%;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .composer-card:focus-within {
+      border-color: var(--crimson-accent);
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.35), 0 0 15px var(--crimson-glow);
+    }
+
+    .composer-textarea-box {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      transition: border-color 0.18s ease;
+    }
+
+    .composer-card:focus-within .composer-textarea-box {
+      border-color: rgba(220, 38, 38, 0.5);
+    }
+
+    /* Strictly allows text selection inside textarea ONLY, min 16px font to prevent iOS zoom */
+    .composer-textarea {
+      width: 100%;
+      min-height: 80px;
       background: transparent;
       border: none;
-      color: #ffffff;
-      font-size: 16px; /* Prevents auto-zoom on mobile safari */
-      resize: none;
       outline: none;
-      font-family: inherit;
-      line-height: 1.4;
+      color: var(--text-white);
+      font-family: var(--font-main);
+      font-size: 16px; /* 16px prevents iOS Safari auto-zoom on input focus */
+      font-weight: 500;
+      line-height: 1.6;
+      resize: none;
+      word-break: break-word;
+      user-select: text;
+      -webkit-user-select: text;
     }
 
-    .post-input::placeholder {
-      color: #4b4d58;
-    }
-
-    .word-counter {
-      text-align: right;
-      font-size: 11px;
-      color: #636674;
+    .composer-textarea::placeholder {
+      color: var(--text-dim);
       font-weight: 600;
-      margin-top: 6px;
+      user-select: none;
     }
 
-    .word-counter.limit-near { color: #f59e0b; }
-    .word-counter.limit-reached { color: #ef4444; }
-
-    .card-actions {
+    /* Action Row: Counter + Post Now Action Button */
+    .composer-action-row {
       display: flex;
-      justify-content: flex-end;
       align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding-top: 0.2rem;
     }
 
-    .post-btn {
-      background: var(--accent-red);
-      color: #ffffff;
-      border: none;
-      padding: 10px 28px;
-      border-radius: 24px;
-      font-weight: 600;
-      font-size: 13.5px;
+    .word-counter-pill {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      background: var(--bg-input);
+      padding: 0.38rem 0.8rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-subtle);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.18s ease;
+      user-select: none;
+    }
+
+    .word-counter-pill.is-warning {
+      color: var(--color-warning);
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .word-counter-pill.is-limit {
+      color: var(--crimson-accent);
+      border-color: rgba(220, 38, 38, 0.5);
+      background: rgba(220, 38, 38, 0.1);
+      font-weight: 800;
+    }
+
+    .btn-post-broadcast {
+      background: var(--crimson-accent);
+      color: var(--text-white);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.65rem 1.45rem;
+      border-radius: var(--radius-pill);
       cursor: pointer;
-      box-shadow: 0 0 15px rgba(217, 35, 46, 0.4);
-      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 14px var(--crimson-glow);
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      outline: none;
+      user-select: none;
     }
 
-    /* Timeline Bar */
+    .btn-post-broadcast:hover:not(:disabled) {
+      background: var(--crimson-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+    }
+
+    .btn-post-broadcast:active:not(:disabled) {
+      background: var(--crimson-active);
+      transform: translateY(1px) scale(0.98);
+    }
+
+    .btn-post-broadcast:disabled {
+      background: #243044;
+      color: #64748B;
+      border-color: transparent;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+      opacity: 0.7;
+    }
+
+    .btn-post-broadcast svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ==========================================================================
+       TIMELINE METADATA BAR
+       ========================================================================== */
     .timeline-bar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-      padding: 0 4px;
-      font-size: 11px;
-      font-weight: 600;
+      justify-content: space-between;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
     .timeline-title {
-      color: #838896;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
-      gap: 6px;
-      letter-spacing: 0.8px;
+      gap: 0.5rem;
+    }
+
+    .timeline-title-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--crimson-accent);
+      box-shadow: 0 0 8px var(--crimson-accent);
+    }
+
+    .timeline-expiry-badge {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       3. FEED & SPEECH-BUBBLE CARDS (WHATSAPP-INSPIRED)
+       ========================================================================== */
+    .feed-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
+
+    /* Speech Bubble Feed Card */
+    .speech-bubble-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-crisp);
+      border-radius: 18px 18px 18px 4px;
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--shadow-bubble);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      position: relative;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+      cursor: default;
+      user-select: none;
+    }
+
+    .speech-bubble-card:hover {
+      border-color: rgba(220, 38, 38, 0.45);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    /* User's own card: highlights & supports long-press to delete */
+    .speech-bubble-card.is-self {
+      border-left: 3.5px solid var(--crimson-accent);
+      background: var(--bg-bubble-self);
+      cursor: pointer;
+    }
+
+    /* Visual feedback while user is holding (long-pressing) */
+    .speech-bubble-card.is-pressing {
+      transform: scale(0.985);
+      border-color: var(--crimson-accent);
+      box-shadow: 0 0 22px var(--crimson-glow);
+    }
+
+    /* Bubble Header: Tag, Timestamp */
+    .bubble-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.5rem;
+    }
+
+    .bubble-author-group {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    /* Standard "Anonymous Feed" Tag */
+    .tag-anonymous-feed {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-crisp);
+      padding: 0.22rem 0.6rem;
+      border-radius: var(--radius-pill);
       text-transform: uppercase;
     }
 
-    .live-dot {
-      width: 7px;
-      height: 7px;
-      background-color: var(--accent-red);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent-red);
-      animation: pulse 2s infinite;
+    .tag-anonymous-feed svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.2;
     }
 
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
-
-    .expiry-text {
-      color: #4b4e5a;
-      letter-spacing: 0.3px;
-    }
-
-    /* Posts Feed List */
-    .posts-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .post-card {
-      background: var(--card-bg);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 16px;
-      padding: 16px;
-      position: relative;
-    }
-
-    .post-header {
-      display: flex;
-      justify-content: space-between;
+    /* Crimson "My Post" Tag for current user's posts */
+    .tag-my-post {
+      display: inline-flex;
       align-items: center;
-      margin-bottom: 8px;
-      font-size: 12px;
-      color: #636674;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: rgba(220, 38, 38, 0.18);
+      color: #FF5A5A;
+      border: 1.5px solid var(--crimson-accent);
+      padding: 0.22rem 0.65rem;
+      border-radius: var(--radius-pill);
+      box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
     }
 
-    .post-author {
+    .tag-my-post svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.4;
+    }
+
+    .bubble-meta-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .bubble-time {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      white-space: nowrap;
+      font-family: var(--font-mono);
+    }
+
+    /* Bubble Message Text */
+    .bubble-content {
+      font-size: 0.98rem;
       font-weight: 600;
-      color: #9ca3af;
-    }
-
-    .post-time {
-      font-size: 11px;
-      color: #525562;
-    }
-
-    .post-content {
-      color: #e5e7eb;
-      font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.6;
+      color: var(--text-cream);
       word-break: break-word;
       white-space: pre-wrap;
     }
 
-    .delete-btn {
-      background: transparent;
-      border: none;
-      color: #636674;
-      font-size: 14px;
-      cursor: pointer;
-      padding: 2px 4px;
-    }
-
-    .delete-btn:hover {
-      color: var(--accent-red);
-    }
-
-    /* Navigation Dropdown Menu */
-    .dropdown-menu {
-      position: absolute;
-      top: 45px;
-      right: 0;
-      background: #101017;
-      border: 1px solid #282836;
-      border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-      z-index: 999;
-      display: none;
-      flex-direction: column;
-      min-width: 200px;
-    }
-
-    .dropdown-menu.show { display: flex; }
-
-    .dropdown-item {
-      padding: 12px 16px;
-      color: #d1d5db;
-      font-size: 13px;
-      background: none;
-      border: none;
-      text-align: left;
-      cursor: pointer;
+    /* Bubble Action Footer: Upvotes / Downvotes */
+    .bubble-footer {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
+      gap: 0.65rem;
+      padding-top: 0.35rem;
     }
 
-    .dropdown-item:hover {
-      background: rgba(217, 35, 46, 0.15);
-      color: #fff;
+    .vote-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
     }
 
-    #pdf-container {
+    .vote-pill {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 0.32rem 0.75rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.16s ease;
+      outline: none;
+      user-select: none;
+    }
+
+    .vote-pill:hover {
+      border-color: var(--border-crisp);
+      background: #192233;
+      color: var(--text-white);
+    }
+
+    .vote-pill:active {
+      transform: scale(0.95);
+    }
+
+    .vote-pill svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Active Upvote State */
+    .vote-pill.upvoted {
+      background: var(--color-upvote-bg);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: var(--color-upvote);
+    }
+
+    .vote-pill.upvoted svg {
+      stroke: var(--color-upvote);
+    }
+
+    /* Active Downvote State */
+    .vote-pill.downvoted {
+      background: var(--color-downvote-bg);
+      border-color: rgba(244, 63, 94, 0.45);
+      color: var(--color-downvote);
+    }
+
+    .vote-pill.downvoted svg {
+      stroke: var(--color-downvote);
+    }
+
+    /* Empty Feed Card */
+    .empty-state-card {
+      background: var(--bg-panel);
+      border: 1px dashed var(--border-crisp);
+      border-radius: var(--radius-card);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.85rem;
+    }
+
+    /* Clean pulse animation for Connecting to Feed state */
+    .loading-pulse-ring {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid rgba(220, 38, 38, 0.2);
+      border-top-color: var(--crimson-accent);
+      animation: spinRing 0.85s linear infinite;
+    }
+
+    @keyframes spinRing {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state-title {
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    /* ==========================================================================
+       4. LONG-PRESS DELETE CONFIRMATION MODAL (DARK & PROFESSIONAL)
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 250;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-crisp);
+      border-radius: var(--radius-card);
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(220, 38, 38, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      transform: scale(0.94);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.show .modal-dialog {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .modal-icon-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      color: var(--crimson-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .modal-icon-badge svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.4;
+    }
+
+    .modal-title-box h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+
+    .modal-title-box p {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .modal-snippet-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-left: 3px solid var(--crimson-accent);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      color: var(--text-cream);
+      font-size: 0.88rem;
+      font-weight: 600;
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+      word-break: break-word;
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .btn-modal-cancel {
+      background: transparent;
+      border: 1px solid var(--border-crisp);
+      color: var(--text-secondary);
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 700;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+      outline: none;
+    }
+
+    .btn-modal-cancel:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-white);
+    }
+
+    .btn-modal-cancel:active {
+      transform: scale(0.97);
+    }
+
+    .btn-modal-delete {
+      background: var(--crimson-accent);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-white);
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 800;
+      padding: 0.6rem 1.35rem;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      box-shadow: 0 4px 14px var(--crimson-glow);
+      transition: background 0.15s ease, transform 0.14s ease;
+      outline: none;
+    }
+
+    .btn-modal-delete:hover {
+      background: var(--crimson-hover);
+    }
+
+    .btn-modal-delete:active {
+      background: var(--crimson-active);
+      transform: scale(0.97);
+    }
+
+    /* ==========================================================================
+       TOAST NOTIFICATION
+       ========================================================================== */
+    .toast-banner {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #111722;
+      border: 1.5px solid var(--crimson-accent);
+      color: var(--text-white);
+      padding: 0.75rem 1.35rem;
+      border-radius: var(--radius-pill);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px var(--crimson-glow);
+      font-size: 0.88rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      z-index: 300;
+      opacity: 0;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast-banner.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* PDF Staging Container */
+    #pdfStagingArea {
       display: none;
-      background: #ffffff;
-      color: #000000;
-      padding: 20px;
-      font-family: Arial, sans-serif;
+    }
+
+    /* ==========================================================================
+       RESPONSIVENESS
+       ========================================================================== */
+    @media (max-width: 600px) {
+      .app-header {
+        padding: 0.75rem 1rem;
+      }
+      .logo-badge {
+        width: 40px;
+        height: 40px;
+      }
+      .title-line-1 {
+        font-size: 1.15rem;
+      }
+      .title-line-2 {
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+      }
+      .composer-card {
+        padding: 1rem;
+      }
+      .speech-bubble-card {
+        padding: 1rem;
+      }
     }
   </style>
 </head>
 <body>
 
-  <div class="app-container">
-    <header class="header">
-      <div class="brand-section">
-        <div class="logo-circle">47</div>
-        <div class="title-group">
-          <h1 class="brand-title">Batch-47</h1>
-          <span class="brand-subtitle">ANONYMOUS FEED</span>
+  <!-- Hidden PDF Staging Container -->
+  <div id="pdfStagingArea"></div>
+
+  <!-- Toast Notification Alert -->
+  <div class="toast-banner" id="toastNotification">
+    <span id="toastMsg">Notification</span>
+  </div>
+
+  <!-- Long-Press Post Deletion Confirmation Modal -->
+  <div class="modal-overlay" id="deleteConfirmModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-icon-badge">
+          <svg viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </div>
+        <div class="modal-title-box">
+          <h3 id="modalTitle">Delete This Post?</h3>
+          <p>Author Deletion Confirmation</p>
         </div>
       </div>
-      <button class="menu-btn" id="menu-toggle-btn" title="Menu">⋮</button>
-      
-      <!-- Top Dropdown Menu inside header -->
-      <div class="dropdown-menu" id="dropdown-menu">
-        <button class="dropdown-item" id="export-pdf-btn">📄 Export Feed History (PDF)</button>
+
+      <div class="modal-snippet-box" id="modalPostSnippet">
+        <!-- Injected snippet -->
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" id="btnCancelModal">Cancel</button>
+        <button class="btn-modal-delete" id="btnConfirmModalDelete">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          <span>Delete Post</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-viewport">
+
+    <!-- ========================================================================
+         1. CLEAN & MINIMAL HEADER WITH CRIMSON GRADIENT (NO "LIVE" BADGES)
+         ======================================================================== -->
+    <header class="app-header">
+      <a href="#" class="header-branding" aria-label="Batch-47 Anonymous Feed Home">
+        <!-- Stylized "47" Geometric Logo Badge -->
+        <div class="logo-badge" aria-hidden="true">
+          <svg viewBox="0 0 32 32">
+            <!-- Geometric 4 -->
+            <path d="M14 6 L7 17 L17 17 M14 11 L14 26" />
+            <!-- Geometric 7 -->
+            <path d="M19 6 L27 6 L20 26" />
+          </svg>
+        </div>
+
+        <!-- Typography Branding: Line 1 BATCH-47 / Line 2 ANONYMOUS FEED -->
+        <div class="branding-titles">
+          <div class="title-line-1">BATCH-47</div>
+          <div class="title-line-2">ANONYMOUS FEED</div>
+        </div>
+      </a>
+
+      <!-- Header Right: Minimal Options Dropdown -->
+      <div class="header-actions">
+        <button class="btn-header-icon" id="btnOptionsMenu" title="Feed Options" aria-label="Feed Options">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
+
+        <div class="dropdown-menu" id="dropdownMenu">
+          <button class="dropdown-item" id="btnExportPdf">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <polyline points="9 15 12 18 15 15" />
+            </svg>
+            Export Feed History (PDF)
+          </button>
+        </div>
       </div>
     </header>
 
-    <section class="input-card">
-      <div class="textarea-wrapper">
-        <textarea 
-          id="post-text" 
-          class="post-input" 
-          placeholder="Tell Batch-47 anonymously... (Max 47 words)"
-        ></textarea>
-        <div class="word-counter" id="word-count-display">0 / 47 words</div>
+    <!-- ========================================================================
+         MAIN CONTENT AREA
+         ======================================================================== -->
+    <main class="app-main">
+
+      <!-- ====================================================================
+           2. INPUT COMPONENT (16PX RADIUS CARD, CLEAN MINIMAL PLACEHOLDER)
+           ==================================================================== -->
+      <section class="composer-card" aria-label="Create Anonymous Post">
+        <div class="composer-textarea-box">
+          <textarea
+            id="postContentInput"
+            class="composer-textarea"
+            placeholder="Tell Batch-47 anonymously..."
+            rows="3"
+            maxlength="1000"
+          ></textarea>
+        </div>
+
+        <div class="composer-action-row">
+          <!-- Real-Time Word Counter -->
+          <div class="word-counter-pill" id="wordCountBadge">
+            <span id="wordCountVal">0</span> / 47 words
+          </div>
+
+          <!-- Bold, Sleek Crimson Post Now Action Button -->
+          <button id="btnBroadcastPost" class="btn-post-broadcast" disabled>
+            <svg viewBox="0 0 24 24">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+            <span>Post Now</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TIMELINE HEADER
+           ==================================================================== -->
+      <div class="timeline-bar">
+        <div class="timeline-title">
+          <span class="timeline-title-dot"></span>
+          <span>Anonymous Feed</span>
+        </div>
+        <div class="timeline-expiry-badge">
+          30-day retention
+        </div>
       </div>
 
-      <div class="card-actions">
-        <button class="post-btn" id="submit-post-btn">Post Now</button>
-      </div>
-    </section>
+      <!-- ====================================================================
+           3. TIMELINE & FEED CARDS (WHATSAPP-LIKE SPEECH BUBBLES)
+           ==================================================================== -->
+      <section class="feed-list" id="feedCardsContainer" aria-label="Anonymous Message Stream">
+        <!-- Clean loading state: spinner and primary bold heading only -->
+        <div class="empty-state-card" id="initialLoadingState">
+          <div class="loading-pulse-ring"></div>
+          <div class="empty-state-title">Connecting to Feed...</div>
+        </div>
+      </section>
 
-    <div class="timeline-bar">
-      <div class="timeline-title">
-        <span class="live-dot"></span> LIVE TIMELINE
-      </div>
-      <div class="expiry-text">Auto-expires after 30 days</div>
-    </div>
-
-    <main class="posts-list" id="posts-container">
-      <div style="text-align: center; color: #636674; font-size: 13px; padding: 20px;">
-        Connecting to live feed...
-      </div>
     </main>
+
   </div>
 
-  <div id="pdf-container"></div>
-
+  <!-- ==========================================================================
+       JAVASCRIPT APPLICATION LOGIC & SUPABASE INTEGRATION
+       ========================================================================== -->
   <script>
-    // ==========================================
-    // 1. SUPABASE CLIENT & AUTO REGISTRATION (FIXED URL)
-    // ==========================================
-    const SUPABASE_URL = "https://oeipqyttvkxqrtzesowb.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9laXBxeXR0dmt4cXJ0emVzb3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NDkzNjAsImV4cCI6MjEwNTMyNTM2MH0.nkZXFz89-9MhDqjnjOUS5QXp48m5FG91JqpdfxPifoE";
+    (function () {
+      'use strict';
 
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      // ------------------------------------------------------------------------
+      // 1. SUPABASE CLIENT INITIALIZATION
+      // ------------------------------------------------------------------------
+      const SUPABASE_URL = 'https://rlkygmydqazegeaqnzlv.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsa3lnbXlkcWF6ZWdlYXFuemx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIwNDQ5ODgsImV4cCI6MjA1NzYyMDk4OH0.l83aW1r4OqP97aL_yR6Z7r6X_r_u0-tX44hXqO-yD_U';
 
-    let currentUserId = localStorage.getItem("b47_anon_id");
-    if (!currentUserId) {
-      currentUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-      localStorage.setItem("b47_anon_id", currentUserId);
-    }
-
-    // ==========================================
-    // 2. WORD COUNT MANAGEMENT
-    // ==========================================
-    const postTextInput = document.getElementById("post-text");
-    const wordCountDisplay = document.getElementById("word-count-display");
-
-    function getWordCount(str) {
-      const trimmed = str.trim();
-      return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
-    }
-
-    postTextInput.addEventListener("input", () => {
-      const count = getWordCount(postTextInput.value);
-      wordCountDisplay.innerText = `${count} / 47 words`;
-
-      if (count > 47) {
-        wordCountDisplay.className = "word-counter limit-reached";
-      } else if (count >= 40) {
-        wordCountDisplay.className = "word-counter limit-near";
-      } else {
-        wordCountDisplay.className = "word-counter";
-      }
-    });
-
-    // ==========================================
-    // 3. SUBMIT POST FUNCTIONALITY
-    // ==========================================
-    const submitPostBtn = document.getElementById("submit-post-btn");
-
-    submitPostBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const content = postTextInput.value.trim();
-      const wordCount = getWordCount(content);
-
-      if (!content) {
-        alert("Please write a message before posting!");
-        return;
-      }
-
-      if (wordCount > 47) {
-        alert("Maximum 47 words allowed per post!");
-        return;
-      }
-
-      submitPostBtn.disabled = true;
-      submitPostBtn.innerText = "Posting...";
-
+      let supabaseClient = null;
       try {
-        const { error } = await db.from("posts").insert([
-          {
-            content: content,
-            user_id: currentUserId
-          }
-        ]);
-
-        if (error) throw error;
-
-        postTextInput.value = "";
-        wordCountDisplay.innerText = "0 / 47 words";
-
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
       } catch (err) {
-        alert("Failed to send message: " + (err.message || "Network error"));
-      } finally {
-        submitPostBtn.disabled = false;
-        submitPostBtn.innerText = "Post Now";
+        console.warn('Supabase client failed to initialize:', err);
       }
-    });
 
-    // ==========================================
-    // 4. FETCH POSTS & REALTIME LISTEN
-    // ==========================================
-    const postsContainer = document.getElementById("posts-container");
+      // Target Table configuration (primary 'anonymous_posts' or fallback 'posts')
+      let activeTableName = 'anonymous_posts';
 
-    function formatDate(dateStr) {
-      if (!dateStr) return "";
-      const date = new Date(dateStr);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + date.toLocaleDateString();
-    }
+      // ------------------------------------------------------------------------
+      // 2. USER ANONYMOUS IDENTITY & VOTING CACHE
+      // ------------------------------------------------------------------------
+      const STORAGE_KEY_USER = 'b47_user_anon_token_v3';
+      const STORAGE_KEY_POSTS = 'b47_cached_feed_v3';
+      const STORAGE_KEY_VOTES = 'b47_user_votes_v3'; // { [postId]: 'up' | 'down' }
 
-    function escapeHTML(str) {
-      return (str || "").replace(/[&<>'"]/g, 
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-      );
-    }
+      let myAnonId = localStorage.getItem(STORAGE_KEY_USER);
+      if (!myAnonId) {
+        const randHex = Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
+        myAnonId = `anon_${randHex}`;
+        localStorage.setItem(STORAGE_KEY_USER, myAnonId);
+      }
 
-    async function fetchPosts() {
+      let myVotes = {};
       try {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const savedVotes = localStorage.getItem(STORAGE_KEY_VOTES);
+        if (savedVotes) myVotes = JSON.parse(savedVotes);
+      } catch (e) {
+        myVotes = {};
+      }
 
-        const { data: posts, error } = await db
-          .from("posts")
-          .select("*")
-          .gte("created_at", thirtyDaysAgo)
-          .order("created_at", { ascending: false });
+      function saveUserVotes() {
+        try {
+          localStorage.setItem(STORAGE_KEY_VOTES, JSON.stringify(myVotes));
+        } catch (e) {}
+      }
 
-        if (error) {
-          postsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">Database Error: ${error.message}</div>`;
-          return;
+      // ------------------------------------------------------------------------
+      // 3. DOM ELEMENTS
+      // ------------------------------------------------------------------------
+      const postContentInput = document.getElementById('postContentInput');
+      const wordCountBadge = document.getElementById('wordCountBadge');
+      const wordCountVal = document.getElementById('wordCountVal');
+      const btnBroadcastPost = document.getElementById('btnBroadcastPost');
+      const feedCardsContainer = document.getElementById('feedCardsContainer');
+      const btnOptionsMenu = document.getElementById('btnOptionsMenu');
+      const dropdownMenu = document.getElementById('dropdownMenu');
+      const btnExportPdf = document.getElementById('btnExportPdf');
+      const toastNotification = document.getElementById('toastNotification');
+      const toastMsg = document.getElementById('toastMsg');
+      const pdfStagingArea = document.getElementById('pdfStagingArea');
+
+      // Modal elements
+      const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+      const modalPostSnippet = document.getElementById('modalPostSnippet');
+      const btnCancelModal = document.getElementById('btnCancelModal');
+      const btnConfirmModalDelete = document.getElementById('btnConfirmModalDelete');
+
+      let feedPosts = [];
+      let isBroadcasting = false;
+      let toastTimer = null;
+      let pendingDeletePostId = null;
+
+      // ------------------------------------------------------------------------
+      // 4. UTILITIES & HELPERS
+      // ------------------------------------------------------------------------
+      function showToast(message) {
+        if (!toastNotification || !toastMsg) return;
+        toastMsg.textContent = message;
+        toastNotification.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastNotification.classList.remove('show');
+        }, 3000);
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function countWords(text) {
+        if (!text) return 0;
+        const trimmed = text.trim();
+        if (!trimmed) return 0;
+        return trimmed.split(/\s+/).filter(Boolean).length;
+      }
+
+      function formatRelativeTime(isoString) {
+        if (!isoString) return 'Just now';
+        try {
+          const date = new Date(isoString);
+          const now = new Date();
+          const diffSec = Math.floor((now - date) / 1000);
+
+          if (diffSec < 45) return 'Just now';
+          const diffMin = Math.floor(diffSec / 60);
+          if (diffMin < 60) return `${diffMin}m ago`;
+          const diffHr = Math.floor(diffMin / 60);
+          if (diffHr < 24) return `${diffHr}h ago`;
+          const diffDay = Math.floor(diffHr / 24);
+          if (diffDay < 30) return `${diffDay}d ago`;
+
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch (e) {
+          return 'Recent';
+        }
+      }
+
+      // ------------------------------------------------------------------------
+      // 5. WORD COUNT & STRICT 47-WORD LIMIT ENFORCEMENT
+      // ------------------------------------------------------------------------
+      function handleComposerInput() {
+        if (!postContentInput || !wordCountVal || !wordCountBadge || !btnBroadcastPost) return;
+
+        let rawText = postContentInput.value;
+        const words = rawText.trim().split(/\s+/).filter(Boolean);
+        let numWords = words.length;
+
+        // Strict 47-Word Cap Enforcement: Truncate typed/pasted text exceeding 47 words
+        if (numWords > 47) {
+          const allowedWords = words.slice(0, 47);
+          postContentInput.value = allowedWords.join(' ');
+          numWords = 47;
+          showToast('Word limit reached: 47 words maximum');
         }
 
-        if (!posts || posts.length === 0) {
-          postsContainer.innerHTML = `<div style="text-align: center; color: #636674; padding: 20px;">No messages yet. Be the first to post!</div>`;
-          return;
+        wordCountVal.textContent = numWords;
+
+        // Word count styling transitions
+        wordCountBadge.classList.remove('is-warning', 'is-limit');
+        if (numWords >= 40 && numWords < 47) {
+          wordCountBadge.classList.add('is-warning');
+        } else if (numWords >= 47) {
+          wordCountBadge.classList.add('is-limit');
         }
 
-        postsContainer.innerHTML = posts.map(post => {
-          const isOwner = post.user_id === currentUserId;
+        // Enable or disable Broadcast button
+        const canSubmit = (numWords > 0 && numWords <= 47 && !isBroadcasting);
+        btnBroadcastPost.disabled = !canSubmit;
+      }
 
-          return `
-            <div class="post-card" id="post-${post.id}">
-              <div class="post-header">
-                <span class="post-author">Anonymous</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="post-time">${formatDate(post.created_at)}</span>
-                  ${isOwner ? `<button class="delete-btn" onclick="deletePost('${post.id}')" title="Delete your post">🗑️</button>` : ''}
-                </div>
-              </div>
-              <div class="post-content">${escapeHTML(post.content)}</div>
+      if (postContentInput) {
+        postContentInput.addEventListener('input', handleComposerInput);
+        postContentInput.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (!btnBroadcastPost.disabled) broadcastNewPost();
+          }
+        });
+      }
+
+      // ------------------------------------------------------------------------
+      // 6. RENDER FEED SPEECH BUBBLE CARDS
+      // ------------------------------------------------------------------------
+      function renderFeed() {
+        if (!feedCardsContainer) return;
+
+        if (!feedPosts || feedPosts.length === 0) {
+          feedCardsContainer.innerHTML = `
+            <div class="empty-state-card">
+              <div class="empty-state-title">No broadcasts yet</div>
             </div>
           `;
-        }).join("");
+          return;
+        }
 
-      } catch (err) {
-        postsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px;">Connection Error: ${err.message}</div>`;
+        feedCardsContainer.innerHTML = feedPosts.map(post => {
+          const isSelf = (post.user_id === myAnonId);
+          const timeFormatted = formatRelativeTime(post.created_at);
+          const upvotesCount = parseInt(post.upvotes || 0, 10);
+          const downvotesCount = parseInt(post.downvotes || 0, 10);
+          const myVote = myVotes[post.id]; // 'up' or 'down'
+
+          return `
+            <article 
+              class="speech-bubble-card ${isSelf ? 'is-self' : ''}" 
+              id="card-${post.id}"
+              data-id="${post.id}"
+              ${isSelf ? 'title="Hold (long-press) to delete this post"' : ''}
+            >
+              <div class="bubble-header">
+                <div class="bubble-author-group">
+                  ${isSelf ? `
+                    <!-- Bold Crimson My Post Tag -->
+                    <span class="tag-my-post">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      <span>My Post</span>
+                    </span>
+                  ` : `
+                    <!-- Standard Anonymous Feed Tag -->
+                    <span class="tag-anonymous-feed">
+                      <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      <span>Anonymous Feed</span>
+                    </span>
+                  `}
+                </div>
+                <div class="bubble-meta-right">
+                  <time class="bubble-time" datetime="${post.created_at}">${escapeHtml(timeFormatted)}</time>
+                </div>
+              </div>
+
+              <div class="bubble-content">${escapeHtml(post.content)}</div>
+
+              <div class="bubble-footer">
+                <div class="vote-actions-group">
+                  <!-- Upvote Button -->
+                  <button 
+                    class="vote-pill ${myVote === 'up' ? 'upvoted' : ''}" 
+                    onclick="window.handleVote(event, '${post.id}', 'up')" 
+                    title="Upvote" 
+                    aria-label="Upvote"
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                    <span>${upvotesCount}</span>
+                  </button>
+
+                  <!-- Downvote Button -->
+                  <button 
+                    class="vote-pill ${myVote === 'down' ? 'downvoted' : ''}" 
+                    onclick="window.handleVote(event, '${post.id}', 'down')" 
+                    title="Downvote" 
+                    aria-label="Downvote"
+                  >
+                    <svg viewBox="0 0 24 24">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                    <span>${downvotesCount}</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        // Attach Long-Press Listeners to current user's "My Post" cards
+        attachLongPressHandlers();
       }
-    }
 
-    // Realtime Supabase Setup (v2 Subscription)
-    db.channel('custom-all-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-        fetchPosts();
-      })
-      .subscribe();
+      // ------------------------------------------------------------------------
+      // 7. LONG-PRESS LOGIC FOR "MY POST" CARDS
+      // ------------------------------------------------------------------------
+      function attachLongPressHandlers() {
+        const selfCards = feedCardsContainer.querySelectorAll('.speech-bubble-card.is-self');
+        const HOLD_DURATION_MS = 550;
 
-    fetchPosts();
+        selfCards.forEach(card => {
+          const postId = card.getAttribute('data-id');
+          let pressTimer = null;
+          let startX = 0;
+          let startY = 0;
 
-    // ==========================================
-    // 5. DELETE OWN POST
-    // ==========================================
-    window.deletePost = async (postId) => {
-      if (confirm("Are you sure you want to delete your post?")) {
-        const { error } = await db.from("posts").delete().eq("id", postId).eq("user_id", currentUserId);
-        if (error) {
-          alert("Could not delete message: " + error.message);
-        } else {
-          fetchPosts();
+          function startPress(e) {
+            // Ignore if clicked on vote buttons
+            if (e.target.closest('.vote-pill')) return;
+
+            if (e.type === 'touchstart') {
+              startX = e.touches[0].clientX;
+              startY = e.touches[0].clientY;
+            } else if (e.button !== 0) {
+              return; // only primary mouse click
+            }
+
+            card.classList.add('is-pressing');
+            clearTimeout(pressTimer);
+
+            pressTimer = setTimeout(() => {
+              card.classList.remove('is-pressing');
+              if (navigator.vibrate) navigator.vibrate(40);
+              openDeleteModal(postId);
+            }, HOLD_DURATION_MS);
+          }
+
+          function cancelPress(e) {
+            clearTimeout(pressTimer);
+            card.classList.remove('is-pressing');
+          }
+
+          function movePress(e) {
+            if (e.type === 'touchmove') {
+              const dx = Math.abs(e.touches[0].clientX - startX);
+              const dy = Math.abs(e.touches[0].clientY - startY);
+              if (dx > 10 || dy > 10) {
+                cancelPress();
+              }
+            }
+          }
+
+          // Touch events
+          card.addEventListener('touchstart', startPress, { passive: true });
+          card.addEventListener('touchend', cancelPress);
+          card.addEventListener('touchcancel', cancelPress);
+          card.addEventListener('touchmove', movePress, { passive: true });
+
+          // Mouse events (desktop long-click hold)
+          card.addEventListener('mousedown', startPress);
+          card.addEventListener('mouseup', cancelPress);
+          card.addEventListener('mouseleave', cancelPress);
+        });
+      }
+
+      // Open Delete Confirmation Modal
+      function openDeleteModal(postId) {
+        const post = feedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        pendingDeletePostId = postId;
+        if (modalPostSnippet) {
+          modalPostSnippet.textContent = post.content;
+        }
+        if (deleteConfirmModal) {
+          deleteConfirmModal.classList.add('show');
         }
       }
-    };
 
-    // ==========================================
-    // 6. UI TOGGLES & PDF EXPORT
-    // ==========================================
-    const menuBtn = document.getElementById("menu-toggle-btn");
-    const dropdownMenu = document.getElementById("dropdown-menu");
-
-    menuBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      dropdownMenu.classList.toggle("show");
-    });
-
-    document.addEventListener("click", () => dropdownMenu.classList.remove("show"));
-
-    document.getElementById("export-pdf-btn").addEventListener("click", async () => {
-      dropdownMenu.classList.remove("show");
-
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: posts } = await db.from("posts").select("*").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: true });
-
-      if (!posts || posts.length === 0) {
-        alert("No chat history available to export.");
-        return;
+      function closeDeleteModal() {
+        pendingDeletePostId = null;
+        if (deleteConfirmModal) {
+          deleteConfirmModal.classList.remove('show');
+        }
       }
 
-      const pdfContainer = document.getElementById("pdf-container");
-      pdfContainer.style.display = "block";
-      
-      pdfContainer.innerHTML = `
-        <h2>Batch-47 Anonymous Feed</h2>
-        <p style="font-size: 11px; color: #666; margin-bottom: 12px;">Exported Feed History (30 Days)</p>
-        <div>
-          ${posts.map(p => `
-            <div style="border-bottom: 1px solid #eee; padding: 8px 0;">
-              <div style="font-size: 11px; color: #666;"><strong>Anonymous</strong> - ${formatDate(p.created_at)}</div>
-              <div style="font-size: 13px;">${escapeHTML(p.content)}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+      if (btnCancelModal) {
+        btnCancelModal.addEventListener('click', closeDeleteModal);
+      }
 
-      const opt = {
-        margin: 10,
-        filename: 'Batch47_Feed_History.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      if (deleteConfirmModal) {
+        deleteConfirmModal.addEventListener('click', (e) => {
+          if (e.target === deleteConfirmModal) closeDeleteModal();
+        });
+      }
+
+      if (btnConfirmModalDelete) {
+        btnConfirmModalDelete.addEventListener('click', async () => {
+          if (!pendingDeletePostId) return;
+          const targetId = pendingDeletePostId;
+          closeDeleteModal();
+          await executePostDeletion(targetId);
+        });
+      }
+
+      // ------------------------------------------------------------------------
+      // 8. EXECUTE POST DELETION (OWNER ONLY)
+      // ------------------------------------------------------------------------
+      async function executePostDeletion(postId) {
+        try {
+          if (supabaseClient) {
+            const { error } = await supabaseClient
+              .from(activeTableName)
+              .delete()
+              .eq('id', postId)
+              .eq('user_id', myAnonId);
+
+            if (error) throw error;
+          }
+
+          feedPosts = feedPosts.filter(p => p.id !== postId);
+          renderFeed();
+          try {
+            localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+          } catch (e) {}
+          showToast('Post deleted successfully');
+        } catch (err) {
+          console.error('Delete failed:', err);
+          showToast('Could not delete post.');
+        }
+      }
+
+      // ------------------------------------------------------------------------
+      // 9. FETCH POSTS FROM SUPABASE
+      // ------------------------------------------------------------------------
+      async function fetchRecentFeed() {
+        // Load from local storage cache first for instant feedback
+        try {
+          const cached = localStorage.getItem(STORAGE_KEY_POSTS);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              feedPosts = parsed;
+              renderFeed();
+            }
+          }
+        } catch (e) {}
+
+        if (!supabaseClient) return;
+
+        // Try primary table 'anonymous_posts'
+        let { data, error } = await supabaseClient
+          .from('anonymous_posts')
+          .select('id, content, user_id, upvotes, downvotes, created_at')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        // Fallback to 'posts' table if 'anonymous_posts' table is not yet created in Supabase
+        if (error && error.code === 'PGRST205') {
+          console.warn("Table 'anonymous_posts' not found, falling back to 'posts'");
+          activeTableName = 'posts';
+          const fb = await supabaseClient
+            .from('posts')
+            .select('id, content, user_id, created_at')
+            .order('created_at', { ascending: false })
+            .limit(100);
+          data = fb.data;
+          error = fb.error;
+        } else {
+          activeTableName = 'anonymous_posts';
+        }
+
+        if (error) {
+          console.warn('Error fetching posts:', error);
+          return;
+        }
+
+        if (Array.isArray(data)) {
+          feedPosts = data.map(p => ({
+            ...p,
+            upvotes: p.upvotes || 0,
+            downvotes: p.downvotes || 0
+          }));
+          renderFeed();
+          try {
+            localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+          } catch (e) {}
+        }
+      }
+
+      // ------------------------------------------------------------------------
+      // 10. BROADCAST NEW POST
+      // ------------------------------------------------------------------------
+      async function broadcastNewPost() {
+        if (!postContentInput) return;
+        const content = postContentInput.value.trim();
+        const wordCount = countWords(content);
+
+        if (wordCount === 0 || wordCount > 47) {
+          showToast('Please enter between 1 and 47 words.');
+          return;
+        }
+
+        isBroadcasting = true;
+        btnBroadcastPost.disabled = true;
+        btnBroadcastPost.innerHTML = 'Broadcasting...';
+
+        try {
+          if (!supabaseClient) throw new Error('Supabase client is not available');
+
+          const newPostPayload = {
+            content: content,
+            user_id: myAnonId,
+            upvotes: 0,
+            downvotes: 0
+          };
+
+          const { data, error } = await supabaseClient
+            .from(activeTableName)
+            .insert([newPostPayload])
+            .select();
+
+          if (error) throw error;
+
+          // Clear textarea & reset word counter
+          postContentInput.value = '';
+          handleComposerInput();
+          showToast('Message broadcasted to Batch-47! 🚀');
+
+          // If select returned data, prepend to feed immediately
+          if (data && data[0]) {
+            const inserted = {
+              ...data[0],
+              upvotes: data[0].upvotes || 0,
+              downvotes: data[0].downvotes || 0
+            };
+            feedPosts = [inserted, ...feedPosts.filter(p => p.id !== inserted.id)];
+            renderFeed();
+            try {
+              localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+            } catch (e) {}
+          } else {
+            await fetchRecentFeed();
+          }
+        } catch (err) {
+          console.error('Broadcast failed:', err);
+          showToast(err.message || 'Failed to post. Check connection.');
+        } finally {
+          isBroadcasting = false;
+          btnBroadcastPost.innerHTML = `
+            <svg viewBox="0 0 24 24">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+            <span>Post Now</span>
+          `;
+          handleComposerInput();
+        }
+      }
+
+      if (btnBroadcastPost) {
+        btnBroadcastPost.addEventListener('click', broadcastNewPost);
+      }
+
+      // ------------------------------------------------------------------------
+      // 11. UPVOTE & DOWNVOTE HANDLER
+      // ------------------------------------------------------------------------
+      window.handleVote = async function (e, postId, voteType) {
+        if (e) e.stopPropagation();
+
+        const post = feedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const currentVote = myVotes[postId];
+        let newUpvotes = parseInt(post.upvotes || 0, 10);
+        let newDownvotes = parseInt(post.downvotes || 0, 10);
+
+        if (currentVote === voteType) {
+          // Toggle off vote
+          delete myVotes[postId];
+          if (voteType === 'up') newUpvotes = Math.max(0, newUpvotes - 1);
+          if (voteType === 'down') newDownvotes = Math.max(0, newDownvotes - 1);
+        } else {
+          // If switching from opposite vote
+          if (currentVote === 'up') newUpvotes = Math.max(0, newUpvotes - 1);
+          if (currentVote === 'down') newDownvotes = Math.max(0, newDownvotes - 1);
+
+          myVotes[postId] = voteType;
+          if (voteType === 'up') newUpvotes += 1;
+          if (voteType === 'down') newDownvotes += 1;
+        }
+
+        saveUserVotes();
+        post.upvotes = newUpvotes;
+        post.downvotes = newDownvotes;
+        renderFeed();
+
+        // Update database if table supports it
+        if (supabaseClient && activeTableName === 'anonymous_posts') {
+          try {
+            await supabaseClient
+              .from('anonymous_posts')
+              .update({ upvotes: newUpvotes, downvotes: newDownvotes })
+              .eq('id', postId);
+          } catch (e) {
+            console.warn('Vote update sync failed:', e);
+          }
+        }
       };
 
-      html2pdf().set(opt).from(pdfContainer).save().then(() => {
-        pdfContainer.style.display = "none";
-      });
-    });
+      // ------------------------------------------------------------------------
+      // 12. SUPABASE REALTIME SUBSCRIPTION
+      // ------------------------------------------------------------------------
+      function setupRealtimeListener() {
+        if (!supabaseClient) return;
+
+        try {
+          const channel = supabaseClient
+            .channel('public:anonymous_posts')
+            .on(
+              'postgres_changes',
+              { event: 'INSERT', schema: 'public', table: activeTableName },
+              (payload) => {
+                if (!payload || !payload.new) return;
+                const newRecord = {
+                  ...payload.new,
+                  upvotes: payload.new.upvotes || 0,
+                  downvotes: payload.new.downvotes || 0
+                };
+                if (!feedPosts.some(p => p.id === newRecord.id)) {
+                  feedPosts = [newRecord, ...feedPosts];
+                  renderFeed();
+                  try {
+                    localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+                  } catch (e) {}
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: 'DELETE', schema: 'public', table: activeTableName },
+              (payload) => {
+                if (!payload || !payload.old) return;
+                feedPosts = feedPosts.filter(p => p.id !== payload.old.id);
+                renderFeed();
+                try {
+                  localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+                } catch (e) {}
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: 'UPDATE', schema: 'public', table: activeTableName },
+              (payload) => {
+                if (!payload || !payload.new) return;
+                feedPosts = feedPosts.map(p => {
+                  if (p.id === payload.new.id) {
+                    return {
+                      ...p,
+                      ...payload.new,
+                      upvotes: payload.new.upvotes || 0,
+                      downvotes: payload.new.downvotes || 0
+                    };
+                  }
+                  return p;
+                });
+                renderFeed();
+                try {
+                  localStorage.setItem(STORAGE_KEY_POSTS, JSON.stringify(feedPosts));
+                } catch (e) {}
+              }
+            )
+            .subscribe();
+        } catch (e) {
+          console.warn('Realtime subscription failed:', e);
+        }
+      }
+
+      // ------------------------------------------------------------------------
+      // 13. OPTIONS MENU & PDF HISTORY EXPORT
+      // ------------------------------------------------------------------------
+      if (btnOptionsMenu && dropdownMenu) {
+        btnOptionsMenu.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdownMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+          dropdownMenu.classList.remove('show');
+        });
+      }
+
+      if (btnExportPdf) {
+        btnExportPdf.addEventListener('click', async () => {
+          dropdownMenu.classList.remove('show');
+
+          if (!feedPosts || feedPosts.length === 0) {
+            showToast('No feed posts to export.');
+            return;
+          }
+
+          if (typeof html2pdf === 'undefined') {
+            showToast('PDF library loading, please try again in a moment');
+            return;
+          }
+
+          showToast('Preparing PDF export...');
+
+          // Build clean, professional printable HTML
+          pdfStagingArea.innerHTML = `
+            <div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#1e293b;padding:32px;background:#ffffff;">
+              <div style="border-bottom:2px solid #DC2626;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <h1 style="margin:0;font-size:24px;color:#9E2A2A;font-weight:bold;">BATCH-47</h1>
+                  <p style="margin:4px 0 0 0;font-size:12px;color:#64748B;letter-spacing:0.1em;text-transform:uppercase;">Official Anonymous Feed History</p>
+                </div>
+                <div style="text-align:right;font-size:11px;color:#94A3B8;">
+                  Generated on ${new Date().toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                ${feedPosts.map((p, i) => `
+                  <div style="border:1px solid #E2E8F0;border-radius:8px;padding:14px 18px;margin-bottom:12px;background:#F8FAFC;">
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-bottom:6px;font-weight:bold;">
+                      <span>#${i + 1} • ${escapeHtml(p.user_id === myAnonId ? 'My Post' : 'Anonymous Feed')}</span>
+                      <span>${new Date(p.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style="font-size:13px;line-height:1.5;color:#0F172A;">
+                      ${escapeHtml(p.content)}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div style="margin-top:32px;border-top:1px solid #E2E8F0;padding-top:12px;font-size:10px;color:#94A3B8;text-align:center;">
+                Batch-47 Community • Confidential Anonymous Archive
+              </div>
+            </div>
+          `;
+
+          const opt = {
+            margin: [10, 10, 10, 10],
+            filename: `Batch-47-Feed-History-${new Date().toISOString().slice(0, 10)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+
+          try {
+            await html2pdf().set(opt).from(pdfStagingArea).save();
+            showToast('PDF Exported Successfully! 📄');
+          } catch (err) {
+            console.error('PDF export failed:', err);
+            showToast('PDF generation encountered an error.');
+          } finally {
+            pdfStagingArea.innerHTML = '';
+          }
+        });
+      }
+
+      // Initialize Application
+      handleComposerInput();
+      fetchRecentFeed();
+      setupRealtimeListener();
+
+    })();
   </script>
 </body>
 </html>
