@@ -372,7 +372,7 @@
             const textarea = document.getElementById('post-text');
             const numSpan = document.getElementById('word-count-num');
             const text = textarea.value.trim();
-            const words = text ? text.split(/\s+/) : [];
+            const words = text ? text.split(/\s+/).filter(Boolean) : [];
             const count = words.length;
 
             numSpan.innerText = count;
@@ -442,7 +442,7 @@
             document.getElementById('image-preview-container').classList.add('hidden');
         }
 
-        // Fetch Posts with 33 Hours Expiration Filter
+        // Fetch Posts with public.posts Table Schema
         async function fetchPosts(isSilent = false) {
             const refreshIcon = document.getElementById('refresh-icon');
             if (!isSilent && refreshIcon) refreshIcon.classList.add('animate-spin');
@@ -453,23 +453,26 @@
             if (supabase) {
                 try {
                     const { data, error } = await supabase
-                        .from('users')
+                        .from('posts')
                         .select('*')
                         .order('created_at', { ascending: false });
 
-                    if (!error && data && data.length > 0) {
+                    if (!error && data) {
                         localPosts = data.map(item => ({
-                            id: String(item.id),
-                            text_content: item.username || item.text_content || 'Anonymous Message',
-                            image_data: item.api_key && item.api_key.startsWith('data:image') ? item.api_key : null,
-                            device_signature: item.password_hash || deviceSignature,
-                            ip_signature: item.email || userIpAddress,
+                            id: item.id,
+                            text_content: item.text_content || '',
+                            image_data: item.image_data || null,
+                            device_signature: item.device_signature || '',
+                            ip_signature: item.ip_signature || userIpAddress,
                             created_at: item.created_at || new Date().toISOString(),
-                            is_deleted: item.status === 'banned' || item.status === 'inactive'
+                            is_deleted: item.is_deleted || false,
+                            deleted_at: item.deleted_at || null
                         }));
                         localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
                     }
-                } catch(err) {}
+                } catch(err) {
+                    console.error("Supabase fetch error:", err);
+                }
             }
 
             renderFeed(cutoff33h);
@@ -548,7 +551,7 @@
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        // Post Submit Handler
+        // Post Submit Handler with Supabase Insertion
         async function handlePostSubmit(e) {
             e.preventDefault();
             const textarea = document.getElementById('post-text');
@@ -559,67 +562,91 @@
                 return;
             }
 
-            const wordCount = text.split(/\s+/).length;
+            const wordCount = text.split(/\s+/).filter(Boolean).length;
             if (wordCount > 47) {
                 showToast("Post exceeds the maximum limit of 47 words!");
                 return;
             }
 
-            const newPost = {
-                id: 'p_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+
+            const newPostPayload = {
                 text_content: text,
                 image_data: selectedVintageImageData || null,
                 device_signature: deviceSignature,
-                ip_signature: userIpAddress,
-                created_at: new Date().toISOString(),
-                is_deleted: false
+                ip_signature: userIpAddress
             };
-
-            localPosts.unshift(newPost);
-            localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
 
             if (supabase) {
                 try {
-                    await supabase.from('users').insert([{
-                        username: text,
-                        email: userIpAddress + '_' + Date.now(),
-                        password_hash: deviceSignature,
-                        role: 'user',
-                        status: 'active',
-                        api_key: selectedVintageImageData || 'KEY_OK'
-                    }]);
-                } catch(err) {}
+                    const { data, error } = await supabase
+                        .from('posts')
+                        .insert([newPostPayload])
+                        .select();
+
+                    if (error) throw error;
+                } catch(err) {
+                    console.error("Supabase insert error:", err);
+                    // Local Fallback
+                    const fallbackPost = {
+                        id: 'p_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+                        ...newPostPayload,
+                        created_at: new Date().toISOString(),
+                        is_deleted: false,
+                        deleted_at: null
+                    };
+                    localPosts.unshift(fallbackPost);
+                    localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
+                }
+            } else {
+                const fallbackPost = {
+                    id: 'p_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+                    ...newPostPayload,
+                    created_at: new Date().toISOString(),
+                    is_deleted: false,
+                    deleted_at: null
+                };
+                localPosts.unshift(fallbackPost);
+                localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
             }
 
             textarea.value = '';
             clearImageSelection();
             updateWordCount();
+            submitBtn.disabled = false;
             showToast("Posted anonymously to Batch-47!");
-            fetchPosts();
+            await fetchPosts();
         }
 
         // Delete user's own post
         async function deleteMyPost(postId) {
             if (!confirm("Delete your post?")) return;
 
-            const post = localPosts.find(p => p.id === postId);
+            if (supabase) {
+                try {
+                    await supabase
+                        .from('posts')
+                        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+                        .eq('id', postId);
+                } catch(e) {
+                    console.error("Supabase delete error:", e);
+                }
+            }
+
+            const post = localPosts.find(p => String(p.id) === String(postId));
             if (post) {
                 post.is_deleted = true;
                 post.deleted_at = new Date().toISOString();
                 localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
-
-                if (supabase) {
-                    try {
-                        await supabase.from('users').update({ status: 'inactive' }).eq('id', postId);
-                    } catch(e) {}
-                }
-                showToast("Post deleted.");
-                fetchPosts();
             }
+
+            showToast("Post deleted.");
+            fetchPosts();
         }
 
         function openImageViewModal(postId) {
-            const post = localPosts.find(p => p.id === postId);
+            const post = localPosts.find(p => String(p.id) === String(postId));
             if (!post || !post.image_data) return;
 
             document.getElementById('full-image-target').src = post.image_data;
@@ -756,7 +783,7 @@
                 return `
                     <tr class="${isDeleted ? 'bg-crimson-950/20 text-slate-500' : 'hover:bg-dark-800/50'}">
                         <td class="p-3">${timeStr}</td>
-                        <td class="p-3 text-crimson-400 font-bold">${escapeHtml(p.ip_signature || '182.64.102.47')}</td>
+                        <td class="p-3 text-crimson-400 font-bold">${escapeHtml(p.ip_signature || userIpAddress)}</td>
                         <td class="p-3 max-w-xs truncate">${escapeHtml(p.text_content)}</td>
                         <td class="p-3">
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isDeleted ? 'bg-rose-950 text-rose-400 border border-rose-800' : 'bg-emerald-950 text-emerald-400 border border-emerald-800'}">
@@ -776,21 +803,27 @@
         }
 
         async function adminForceDelete(postId) {
-            const post = localPosts.find(p => p.id === postId);
+            if (supabase) {
+                try {
+                    await supabase
+                        .from('posts')
+                        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+                        .eq('id', postId);
+                } catch(e) {
+                    console.error("Supabase admin delete error:", e);
+                }
+            }
+
+            const post = localPosts.find(p => String(p.id) === String(postId));
             if (post) {
                 post.is_deleted = true;
                 post.deleted_at = new Date().toISOString();
                 localStorage.setItem('batch47_posts_store', JSON.stringify(localPosts));
-
-                if (supabase) {
-                    try {
-                        await supabase.from('users').update({ status: 'banned' }).eq('id', postId);
-                    } catch(e) {}
-                }
-                showToast("Post removed by Admin.");
-                renderAdminTable();
-                fetchPosts();
             }
+
+            showToast("Post removed by Admin.");
+            renderAdminTable();
+            fetchPosts();
         }
 
         function exportAdminAuditPDF() {
@@ -827,7 +860,7 @@
                 doc.setFontSize(8);
                 doc.setFont('courier', 'bold');
                 doc.setTextColor(239, 68, 68);
-                doc.text(`IP: ${p.ip_signature || '182.64.102.47'} | ID: ${p.id}`, 18, y + 8);
+                doc.text(`IP: ${p.ip_signature || userIpAddress} | ID: ${p.id}`, 18, y + 8);
 
                 doc.setTextColor(156, 163, 175);
                 doc.text(`Status: ${p.is_deleted ? 'DELETED' : 'ACTIVE'} | Posted: ${new Date(p.created_at).toLocaleString()}`, 18, y + 15);
